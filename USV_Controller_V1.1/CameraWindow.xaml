@@ -1,0 +1,134 @@
+﻿<Window x:Class="USV_Controller_V1._1.CameraWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="USV Camera Feed" 
+        Height="600" 
+        Width="800"
+        WindowStartupLocation="CenterOwner"
+        Background="#1E1E1E">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" 
+                Background="#252526" 
+                Padding="10,8"
+                BorderBrush="#3F3F46" 
+                BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="📹" 
+                               FontSize="16" 
+                               Margin="0,0,8,0"/>
+                    <TextBlock Text="Live Camera Feed" 
+                               FontSize="14" 
+                               FontWeight="SemiBold"
+                               Foreground="White"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center">
+                    <Ellipse x:Name="StreamingIndicator"
+                             Width="10" 
+                             Height="10" 
+                             Fill="Gray"
+                             Margin="0,0,6,0"/>
+                    <TextBlock x:Name="CameraStatus"
+                               Text="⏳ Connecting..." 
+                               FontSize="12"
+                               Foreground="#CCCCCC"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Video Display Area -->
+        <Border Grid.Row="1" 
+                Background="Black"
+                BorderBrush="#3F3F46"
+                BorderThickness="0">
+            <Grid>
+                <!-- ✅ WindowsFormsHost for VLC player -->
+                <WindowsFormsHost x:Name="vlcHost" 
+                                  Background="Black"/>
+
+                <!-- Loading/Error Overlay (optional) -->
+                <Border x:Name="LoadingOverlay" 
+                        Background="#80000000"
+                        Visibility="Collapsed">
+                    <StackPanel HorizontalAlignment="Center" 
+                                VerticalAlignment="Center">
+                        <TextBlock Text="📡 Connecting to camera..." 
+                                   FontSize="16"
+                                   Foreground="White"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,10"/>
+                        <ProgressBar Width="200" 
+                                     Height="4" 
+                                     IsIndeterminate="True"
+                                     Foreground="LimeGreen"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Footer with Controls Info -->
+        <Border Grid.Row="2" 
+                Background="#252526" 
+                Padding="10,8"
+                BorderBrush="#3F3F46" 
+                BorderThickness="0,1,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Control Instructions -->
+                <StackPanel Orientation="Horizontal" 
+                            VerticalAlignment="Center">
+                    <Border Background="#3C3C3C" 
+                            Padding="8,4" 
+                            CornerRadius="3"
+                            Margin="0,0,10,0">
+                        <TextBlock FontSize="11" 
+                                   Foreground="#CCCCCC">
+                            <Run Text="🎮 Right Stick:" FontWeight="SemiBold"/>
+                            <Run Text="Pan/Tilt Camera"/>
+                        </TextBlock>
+                    </Border>
+
+                    <Border Background="#3C3C3C" 
+                            Padding="8,4" 
+                            CornerRadius="3">
+                        <TextBlock FontSize="11" 
+                                   Foreground="#CCCCCC">
+                            <Run Text="RTSP:" FontWeight="SemiBold"/>
+                            <Run Text="192.168.1.100:554"/>
+                        </TextBlock>
+                    </Border>
+                </StackPanel>
+
+                <!-- Camera Status -->
+                <TextBlock Grid.Column="1" 
+                           Text="Ready" 
+                           FontSize="11"
+                           Foreground="#4EC9B0"
+                           VerticalAlignment="Center"
+                           Margin="10,0,0,0"/>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>
