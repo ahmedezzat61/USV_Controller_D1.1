@@ -21,31 +21,15 @@ namespace USV_Controller_V1._1
 
             try
             {
-                // ✅ Match your project architecture to VLC
-                // If your project is x64, use 64-bit VLC path
-                // If your project is x86, use 32-bit VLC path
-                string libPath = Environment.Is64BitProcess
-                    ? @"C:\Program Files\VideoLAN\VLC"          // 64-bit VLC
-                    : @"C:\Program Files (x86)\VideoLAN\VLC";   // 32-bit VLC
-
-                // Fallback check
-                if (!Directory.Exists(libPath))
-                {
-                    libPath = Environment.Is64BitProcess
-                        ? @"C:\Program Files (x86)\VideoLAN\VLC"
-                        : @"C:\Program Files\VideoLAN\VLC";
-                }
-
+                // ✅ Use relative path to bundled VLC
+                string libPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "VLC");
                 var libDir = new DirectoryInfo(libPath);
 
                 if (!libDir.Exists)
                 {
                     MessageBox.Show(
-                        $"VLC not found. Searched:\n" +
-                        $"• C:\\Program Files\\VideoLAN\\VLC (64-bit)\n" +
-                        $"• C:\\Program Files (x86)\\VideoLAN\\VLC (32-bit)\n\n" +
-                        $"Please install VLC Media Player from:\n" +
-                        $"https://www.videolan.org/vlc/",
+                        $"Bundled VLC not found at:\n{libPath}\n\n" +
+                        $"Make sure VLC files are copied into Resources/VLC.",
                         "VLC Not Found",
                         MessageBoxButton.OK,
                         MessageBoxImage.Error);
@@ -61,9 +45,8 @@ namespace USV_Controller_V1._1
                     if (!File.Exists(dllPath))
                     {
                         MessageBox.Show(
-                            $"Missing VLC library: {dll}\n" +
-                            $"Path: {libPath}\n\n" +
-                            $"Reinstall VLC Media Player.",
+                            $"Missing VLC library: {dll}\nPath: {libPath}\n\n" +
+                            $"Ensure VLC files are bundled correctly.",
                             "Missing VLC Component",
                             MessageBoxButton.OK,
                             MessageBoxImage.Error);
@@ -78,7 +61,7 @@ namespace USV_Controller_V1._1
                 _vlcPlayer.VlcLibDirectory = libDir;
                 _vlcPlayer.EndInit();
 
-                // ✅ Subscribe to VLC events to detect stream status
+                // ✅ Subscribe to VLC events
                 _vlcPlayer.Playing += (s, e) =>
                 {
                     Dispatcher.Invoke(() =>
@@ -86,7 +69,7 @@ namespace USV_Controller_V1._1
                         if (this.FindName("CameraStatus") is TextBlock status)
                         {
                             status.Text = "🟢 Streaming";
-                            status.Foreground = new SolidColorBrush(System.Windows.Media.Color.FromRgb(78, 201, 176));
+                            status.Foreground = new SolidColorBrush(Color.FromRgb(78, 201, 176));
                         }
                         if (this.FindName("StreamingIndicator") is Ellipse indicator)
                         {
@@ -147,7 +130,6 @@ namespace USV_Controller_V1._1
                 }
                 catch
                 {
-                    // Fallback to string overload
                     try
                     {
                         _vlcPlayer.Play(_sourceUrl);
@@ -173,11 +155,8 @@ namespace USV_Controller_V1._1
                     $"Camera init failed: {ex.Message}\n\n" +
                     $"Common causes:\n" +
                     $"• Platform mismatch (x86 app with x64 VLC or vice versa)\n" +
-                    $"• Missing VLC installation\n" +
-                    $"• Corrupted VLC files\n\n" +
-                    $"Try:\n" +
-                    $"1. Reinstall VLC (64-bit version)\n" +
-                    $"2. Set project Platform to x64",
+                    $"• Missing VLC files in Resources/VLC\n" +
+                    $"• Corrupted VLC files",
                     "Camera Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);

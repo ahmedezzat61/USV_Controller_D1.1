@@ -1,0 +1,43 @@
+﻿<Window x:Class="USV_Controller_V1._1.MonitorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Monitor"
+        Height="450"
+        Width="380"
+        Background="#FAFAFA"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="10"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Packet Preview -->
+        <GroupBox Grid.Row="0"
+                  Header="Packet Preview"
+                  FontWeight="Bold">
+            <TextBlock x:Name="PacketPreview"
+                       Text="[00 00 00 ...]"
+                       Margin="10"
+                       FontFamily="Consolas"
+                       TextWrapping="Wrap"
+                       Foreground="#444"/>
+        </GroupBox>
+
+        <!-- Log -->
+        <GroupBox Grid.Row="2"
+                  Header="Raw Log"
+                  FontWeight="Bold">
+            <TextBox x:Name="RawLog"
+                     AcceptsReturn="True"
+                     VerticalScrollBarVisibility="Auto"
+                     TextWrapping="Wrap"
+                     Margin="10"
+                     FontFamily="Consolas"
+                     Background="White"
+                     Foreground="Black"/>
+        </GroupBox>
+    </Grid>
+</Window>

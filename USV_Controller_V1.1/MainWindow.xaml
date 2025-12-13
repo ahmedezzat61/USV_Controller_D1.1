@@ -3,8 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         Title="USV Controller V1.1"
-        WindowState="Maximized"
-        Height="650" Width="1150"
+        Height="680" Width="700"
         WindowStartupLocation="CenterScreen"
         Background="#FAFAFA">
 
@@ -25,15 +24,14 @@
         <!-- Main Layout -->
         <Grid Grid.Row="1" Margin="0,20,0,20">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="1*"/>
-                <ColumnDefinition Width="2.5*"/>
-                <ColumnDefinition Width="1.5*"/>
+                <ColumnDefinition Width="1.1*"/>
+                <ColumnDefinition Width="4*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Clutch Feedback -->
+            <!-- =================== COLUMN 0 (unchanged) =================== -->
             <StackPanel Grid.Column="0" Margin="10,0" VerticalAlignment="Top">
 
-                <!-- Clutch Feedback (smaller) -->
+                <!-- Clutch Feedback -->
                 <GroupBox Header="Clutch" FontWeight="Bold" Margin="0,0,0,10">
                     <Grid>
                         <Grid.ColumnDefinitions>
@@ -43,8 +41,8 @@
 
                         <Slider x:Name="ClutchSlider"
                                 Orientation="Vertical"
-                                Minimum="0" Maximum="660"
-                                Value="330"
+                                Minimum="410" Maximum="625"
+                                Value="515"
                                 IsEnabled="False"
                                 Height="180" Width="25"
                                 VerticalAlignment="Center"
@@ -80,7 +78,7 @@
 
                 <!-- Link Quality -->
                 <GroupBox Header="Link Quality" FontWeight="Bold" Margin="0,0,0,10">
-                    <StackPanel Margin="10" Orientation="Horizontal" HorizontalAlignment="Center">
+                    <StackPanel Margin="10" Orientation="Vertical" HorizontalAlignment="Center">
                         <Ellipse x:Name="LinkIndicator"
                                  Width="25" Height="25"
                                  Fill="Gray"
@@ -90,23 +88,22 @@
                                    Text="Disconnected"
                                    VerticalAlignment="Center"
                                    FontWeight="Bold"
-                                   Margin="10,0,0,0"/>
+                                   Margin="0,10,0,0"/>
                     </StackPanel>
                 </GroupBox>
+
                 <!-- UDP Connection -->
-                <GroupBox Header="UDP Connection" FontWeight="Bold" Margin="0,0,0,10">
-                    <StackPanel Orientation="Horizontal" Margin="10">
-                        <Button x:Name="ConnectButton" Content="Connect" Width="60" Margin="10,0,0,0" Click="ConnectButton_Click"/>
-                        <Button x:Name="DisconnectButton" Content="Disconnect" Width="80" Margin="10,0,0,0" Click="DisconnectButton_Click"/>
+                <GroupBox Header="Connection" FontWeight="Bold" Margin="0,0,0,10">
+                    <StackPanel Orientation="Vertical" Margin="10">
+                        <Button x:Name="ConnectButton" Content="Connect" Width="60" Click="ConnectButton_Click"/>
+                        <Button x:Name="DisconnectButton" Content="Disconnect" Width="70" Margin="0,10,0,0" Click="DisconnectButton_Click"/>
                     </StackPanel>
                 </GroupBox>
 
             </StackPanel>
 
-            <!-- Middle Controls -->
+            <!-- =================== COLUMN 1 (unchanged) =================== -->
             <StackPanel Grid.Column="1" Margin="20,0" VerticalAlignment="Top">
-
-               
 
                 <!-- Speed Feedback -->
                 <GroupBox Header="Speed (RPM)" FontWeight="Bold" Margin="0,10,0,0" Height="256">
@@ -116,52 +113,47 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- === Left RPM Gauge === -->
+                        <!-- Left RPM -->
                         <Grid Grid.Column="0" Width="250" Height="250" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <lvc:PieChart x:Name="RpmPieLeft"
-                          Width="250" Height="250"
-                          IsHitTestVisible="False"
-                          RenderTransformOrigin="0.5,0.5">
+                                          Width="250" Height="250"
+                                          IsHitTestVisible="False"
+                                          RenderTransformOrigin="0.5,0.5">
                                 <lvc:PieChart.RenderTransform>
-                                    <!-- rotate so the semi-circle sits on the top half -->
                                     <RotateTransform Angle="90"/>
                                 </lvc:PieChart.RenderTransform>
                             </lvc:PieChart>
 
                             <Canvas IsHitTestVisible="False">
                                 <Line x:Name="GaugeNeedleLeft"
-                                  X1="125" Y1="125"
-                                  X2="125" Y2="35"
-                                  Stroke="Black"
-                                  StrokeThickness="3"
-                                  StrokeStartLineCap="Round"
-                                  StrokeEndLineCap="Round"/>
+                                      X1="125" Y1="125"
+                                      X2="125" Y2="35"
+                                      Stroke="Black"
+                                      StrokeThickness="3"/>
                                 <Ellipse Width="18" Height="18" Fill="Black" Canvas.Left="116" Canvas.Top="116"/>
                                 <TextBlock x:Name="SpeedValueTextLeft"
-                           Text="0 RPM"
-                           FontSize="14"
-                           FontWeight="Bold"
-                           Foreground="Black"
-                           Canvas.Left="85"
-                           Canvas.Top="140"/>
+                                           Text="0 RPM"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           Canvas.Left="85"
+                                           Canvas.Top="140"/>
                             </Canvas>
                         </Grid>
-                        <TextBlock Text="Ordered Speed"
-                           FontWeight="Bold"
-                           FontSize="14"
-                           Foreground="Black"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Bottom"
-                           Margin="0,8,0,0"/>
 
-                        <!-- === Right RPM Gauge === -->
+                        <TextBlock Text="Ordered Speed"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Bottom"
+                                   Margin="0,8,0,0"/>
+
+                        <!-- Right RPM -->
                         <Grid Grid.Column="1" Width="250" Height="250" HorizontalAlignment="Center" VerticalAlignment="Center">
                             <lvc:PieChart x:Name="RpmPieRight"
-                          Width="250" Height="250"
-                          IsHitTestVisible="False"
-                          RenderTransformOrigin="0.5,0.5">
+                                          Width="250" Height="250"
+                                          IsHitTestVisible="False"
+                                          RenderTransformOrigin="0.5,0.5">
                                 <lvc:PieChart.RenderTransform>
-                                    <!-- rotate so the semi-circle sits on the top half -->
                                     <RotateTransform Angle="90"/>
                                 </lvc:PieChart.RenderTransform>
                             </lvc:PieChart>
@@ -171,47 +163,41 @@
                                       X1="125" Y1="125"
                                       X2="125" Y2="35"
                                       Stroke="Black"
-                                      StrokeThickness="3"
-                                      StrokeStartLineCap="Round"
-                                      StrokeEndLineCap="Round"/>
+                                      StrokeThickness="3"/>
                                 <Ellipse Width="18" Height="18" Fill="Black" Canvas.Left="116" Canvas.Top="116"/>
                                 <TextBlock x:Name="SpeedValueTextRight"
-                           Text="0 RPM"
-                           FontSize="14"
-                           FontWeight="Bold"
-                           Foreground="Black"
-                           Canvas.Left="85"
-                           Canvas.Top="140"/>
+                                           Text="0 RPM"
+                                           FontSize="14"
+                                           FontWeight="Bold"
+                                           Canvas.Left="85"
+                                           Canvas.Top="140"/>
                             </Canvas>
                         </Grid>
+
                         <TextBlock Text="Actual Speed"
                                    Grid.Column="1"
-                           FontWeight="Bold"
-                           FontSize="14"
-                           Foreground="Black"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Bottom"   
-                           Margin="0,8,0,0"/>
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Bottom"
+                                   Margin="0,8,0,0"/>
                     </Grid>
                 </GroupBox>
 
-
-                <!-- Steering Feedback (Ruler Style) -->
+                <!-- Rudder Feedback -->
                 <GroupBox Header="Rudder (°)" FontWeight="Bold" Margin="0,10,0,0">
                     <Grid>
                         <Canvas x:Name="RudderCanvas"
-                            Height="100"
-                            Width="400"
-                            Background="#F5F5F5"
-                            ClipToBounds="True"
-                            HorizontalAlignment="Center"
-                            VerticalAlignment="Center">
+                                Height="100"
+                                Width="400"
+                                Background="#F5F5F5"
+                                ClipToBounds="True"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
 
-                            <!-- Colored zones -->
                             <Rectangle Width="180" Height="10" Fill="#FFB3B3" Canvas.Left="20" Canvas.Top="45"/>
                             <Rectangle Width="180" Height="10" Fill="#B3FFB3" Canvas.Left="200" Canvas.Top="45"/>
 
-                            <!-- Ruler line -->
                             <Line X1="20" Y1="50" X2="380" Y2="50" Stroke="Black" StrokeThickness="2"/>
                             <Line X1="20"  Y1="40" X2="20"  Y2="60" Stroke="Black" StrokeThickness="1"/>
                             <Line X1="80"  Y1="40" X2="80"  Y2="60" Stroke="Black" StrokeThickness="1"/>
@@ -221,7 +207,6 @@
                             <Line X1="320" Y1="40" X2="320" Y2="60" Stroke="Black" StrokeThickness="1"/>
                             <Line X1="380" Y1="40" X2="380" Y2="60" Stroke="Black" StrokeThickness="1"/>
 
-                            <!-- Labels -->
                             <TextBlock Text="-30°" Canvas.Left="10"  Canvas.Top="65" FontWeight="Bold"/>
                             <TextBlock Text="-20°" Canvas.Left="70"  Canvas.Top="65" FontWeight="Bold"/>
                             <TextBlock Text="-10°" Canvas.Left="130" Canvas.Top="65" FontWeight="Bold"/>
@@ -230,48 +215,27 @@
                             <TextBlock Text="+20°" Canvas.Left="310" Canvas.Top="65" FontWeight="Bold"/>
                             <TextBlock Text="+30°" Canvas.Left="370" Canvas.Top="65" FontWeight="Bold"/>
 
-                            <!-- Rudder indicator -->
                             <Rectangle x:Name="RudderIndicator"
-                       Width="12" Height="25"
-                       Fill="#4CAF50"
-                       Stroke="Black"
-                       RadiusX="2" RadiusY="2"
-                       Canvas.Top="38"
-                       Canvas.Left="194"/>
+                                       Width="12" Height="25"
+                                       Fill="#4CAF50"
+                                       Stroke="Black"
+                                       RadiusX="2" RadiusY="2"
+                                       Canvas.Top="38"
+                                       Canvas.Left="194"/>
                         </Canvas>
 
                         <TextBlock x:Name="SteeringValueText"
-                   Text="0°"
-                   FontWeight="Bold"
-                   FontSize="14"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Bottom"
-                   Margin="0,1"/>
+                                   Text="0°"
+                                   FontWeight="Bold"
+                                   FontSize="14"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Bottom"
+                                   Margin="0,1"/>
                     </Grid>
                 </GroupBox>
 
-
-
             </StackPanel>
 
-            <!-- Right Panel (Packet Preview + Raw Log) -->
-            <StackPanel Grid.Column="2" Margin="10" VerticalAlignment="Top" Width="350">
-                <GroupBox Header="Packet Preview" FontWeight="Bold">
-                    <TextBlock x:Name="PacketPreview"
-                               Text="[00 00 00 ...]" Margin="10"
-                               FontFamily="Consolas"
-                               Foreground="#444"/>
-                </GroupBox>
-
-                <GroupBox Header="Raw Log" FontWeight="Bold" Margin="0,10,0,0">
-                    <TextBox x:Name="RawLog"
-                             AcceptsReturn="True"
-                             VerticalScrollBarVisibility="Auto"
-                             TextWrapping="Wrap"
-                             Height="320" Margin="10"
-                             FontFamily="Consolas"/>
-                </GroupBox>
-            </StackPanel>
         </Grid>
 
         <!-- Footer -->

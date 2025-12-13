@@ -10,6 +10,13 @@
 	 <NoWarn>NU1701</NoWarn>
 
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="OpenCPN\**" />
+    <EmbeddedResource Remove="OpenCPN\**" />
+    <None Remove="OpenCPN\**" />
+    <Page Remove="OpenCPN\**" />
+  </ItemGroup>
 	<ItemGroup>
 
 	

@@ -28,6 +28,10 @@ namespace USV_Controller_V1._1
         //
         // Camera control goes to Arduino (when connected), NOT directly to camera
 
+        // Track last camera velocity to detect changes
+        private double _lastPanVelocity = 0;
+        private double _lastTiltVelocity = 0;
+
         private async void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -101,8 +105,8 @@ namespace USV_Controller_V1._1
                 Log($"✅ Connected!");
                 Log($"📡 USV/Arduino: {UsvIp}:{UsvSendPort} {(arduinoOnline ? "(Online)" : "(Offline - Video Only)")}");
                 Log($"📹 Camera video: {CameraIp}:554 (RTSP)");
-                Log($"🎮 Camera PTZ: {CameraIp}:{CameraOnvifPort} (ONVIF)");
-                Log($"🕹️ Right stick controls camera pan/tilt via ONVIF");
+                Log($"🎮 Camera PTZ: ONVIF ContinuousMove (Port {CameraOnvifPort})");
+                Log($"🕹️ Right stick controls camera pan/tilt");
                 Log($"🎮 Xbox Controller: {(_controller.IsConnected ? "Connected ✅" : "NOT CONNECTED ❌")}");
             }
             catch (Exception ex)
@@ -138,8 +142,6 @@ namespace USV_Controller_V1._1
 
         private void Timer_Elapsed(object? sender, ElapsedEventArgs e)
         {
-            // Removed annoying timer tick messages - they were for debugging only
-
             if (!_connected || !_controller.IsConnected)
             {
                 return;
@@ -175,7 +177,7 @@ namespace USV_Controller_V1._1
                 }
             }
 
-            // ✅ Camera PTZ control via ONVIF (works independently of Arduino)
+            // ✅ Camera PTZ control via ONVIF ContinuousMove (works independently of Arduino)
             try
             {
                 // Read raw Xbox stick values
@@ -189,50 +191,47 @@ namespace USV_Controller_V1._1
                 if (rawTiltY == -32768) rawTiltY = -32767;
 
                 // Convert Xbox stick values to ONVIF velocity (-1.0 to 1.0)
-                double panVelocity = rawPanX / 32767.0;  // Now safe: -1.0 to 1.0
-                double tiltVelocity = rawTiltY / 32767.0; // Now safe: -1.0 to 1.0
+                double panVelocity = rawPanX / 32767.0;
+                double tiltVelocity = rawTiltY / 32767.0;
 
                 // Apply deadzone (reduced from 0.1 to 0.08 for better sensitivity)
                 if (Math.Abs(panVelocity) < 0.08) panVelocity = 0;
                 if (Math.Abs(tiltVelocity) < 0.08) tiltVelocity = 0;
 
-                
+                // Only send command if velocity has changed
+                bool velocityChanged =
+                    Math.Abs(panVelocity - _lastPanVelocity) > 0.01 ||
+                    Math.Abs(tiltVelocity - _lastTiltVelocity) > 0.01;
 
-                // Send ONVIF command when stick is moved
-                if (_ptzController != null && (Math.Abs(panVelocity) > 0 || Math.Abs(tiltVelocity) > 0))
+                if (_ptzController != null && velocityChanged)
                 {
-                    // Actually await the task to catch errors
-                    _ = Task.Run(async () =>
+                    if (Math.Abs(panVelocity) > 0 || Math.Abs(tiltVelocity) > 0)
                     {
-                        try
+                        // Send continuous move command
+                        _ = Task.Run(async () =>
                         {
-                            bool success = await _ptzController.ContinuousMove(panVelocity, tiltVelocity);
-                            if (!success && DateTime.Now.Millisecond < 100)
+                            try
                             {
-                                Log($"⚠️ PTZ command failed - check Output window for details");
+                                await _ptzController.ContinuousMove(panVelocity, tiltVelocity);
                             }
-                        }
-                        catch (Exception ex)
-                        {
-                            if (DateTime.Now.Millisecond < 100)
-                            {
-                                Log($"❌ PTZ error: {ex.Message}");
-                            }
-                        }
-                    });
-
-                    // Log PTZ command being sent
-                    if (DateTime.Now.Millisecond < 100)
-                    {
-                        Log($"📹 Sending PTZ command: Pan={panVelocity:F2}, Tilt={tiltVelocity:F2}");
+                            catch { /* Silently ignore camera errors */ }
+                        });
                     }
-                }
-                else if (_ptzController != null && (Math.Abs(_currentPanVelocity) > 0 || Math.Abs(_currentTiltVelocity) > 0))
-                {
-                    // Stop camera when stick is released
-                    var task = _ptzController.Stop();
-                    _currentPanVelocity = 0;
-                    _currentTiltVelocity = 0;
+                    else
+                    {
+                        // Stop camera when stick is centered
+                        _ = Task.Run(async () =>
+                        {
+                            try
+                            {
+                                await _ptzController.Stop();
+                            }
+                            catch { /* Silently ignore camera errors */ }
+                        });
+                    }
+
+                    _lastPanVelocity = panVelocity;
+                    _lastTiltVelocity = tiltVelocity;
                 }
 
                 // Update UI
@@ -253,10 +252,6 @@ namespace USV_Controller_V1._1
                 }
             }
         }
-
-        // Track camera velocity to stop when released
-        private double _currentPanVelocity = 0;
-        private double _currentTiltVelocity = 0;
 
         private async void PingTimer_Elapsed(object? sender, ElapsedEventArgs e)
         {
@@ -303,7 +298,8 @@ namespace USV_Controller_V1._1
                         Dispatcher.Invoke(() =>
                         {
                             // Update clutch slider
-                            ClutchSlider.Value = ClutchSlider.Maximum - feedback1;
+
+                            ClutchSlider.Value = ClutchSlider.Maximum + ClutchSlider.Minimum - feedback1; ;
 
                             // Update RPM gauges
                             short yAxisLive = _gamepad.LeftThumbY;
@@ -315,10 +311,10 @@ namespace USV_Controller_V1._1
                             double rightRpm = Map(feedback2, 0, 450, 800, 4000);
 
                             IntializedRpm(leftRpm);
-                            FeedbackRpm(rightRpm);
+                            //FeedbackRpm(rightRpm);
 
                             // Update steering indicator
-                            double steeringAngle = MapSteeringValue(feedback3);
+                            double steeringAngle = (MapSteeringValue(feedback3) + 2);
                             double mappedLeft = (steeringAngle + 30) / 60 * (380 - 20) + 20 - (RudderIndicator.Width / 2);
                             Canvas.SetLeft(RudderIndicator, mappedLeft);
                             SteeringValueText.Text = $"{steeringAngle:F1}°";
