@@ -18,6 +18,7 @@ namespace USV_Controller_V1._1
         private const int UsvSendPort = 8888;               // Arduino RECEIVES control on 8888
         private const int UsvReceivePort = 8889;            // Arduino SENDS feedback on 8889
 
+
         // ✅ Camera Configuration
         // Camera IP: 192.168.0.50
         // - Video Stream (RTSP): Port 554 (receiving video FROM camera)
@@ -32,18 +33,14 @@ namespace USV_Controller_V1._1
         private double _lastPanVelocity = 0;
         private double _lastTiltVelocity = 0;
 
-        private async void ConnectButton_Click(object sender, RoutedEventArgs e)
+        private async void ConnectButton_Click(object? sender, RoutedEventArgs? e)
         {
             try
             {
-                // ⚠️ NOTE: Arduino/USV must be powered on and connected for control to work
-                // Camera video will work independently even if Arduino is offline
-
                 Log($"🔍 Checking Arduino/USV connection at {UsvIp}...");
 
                 bool arduinoOnline = false;
 
-                // Ping Arduino/USV before connecting
                 using (var ping = new System.Net.NetworkInformation.Ping())
                 {
                     var reply = await ping.SendPingAsync(IPAddress.Parse(UsvIp), 1000);
@@ -76,27 +73,28 @@ namespace USV_Controller_V1._1
                     }
                 }
 
-                // ✅ Setup endpoints
-                // Arduino/USV receives control packets (only if connected)
                 usvEndpoint = new IPEndPoint(IPAddress.Parse(UsvIp), UsvSendPort);
-
-                // Camera control is now via ONVIF, not UDP
-                // No need for camEndpoint anymore
-
                 usvClient = new UdpClient();
-                // camClient not needed anymore - using ONVIF instead
 
                 _connected = true;
                 _isReachable = arduinoOnline;
 
-                // ✅ START THE TIMER - This is critical!
-                _timer.Interval = 100;  // 10 Hz - sends packets every 100ms
+                // 🔒 SAFETY RESET ON CONNECT
+                UpdateJoystickState();
+
+                Dispatcher.Invoke(() =>
+                {
+                    IntializedRpm(0);   // ALWAYS ZERO
+                });
+
+
+                // ✅ START THE TIMER - after initialization
+                _timer.Interval = 100;
                 _timer.Start();
                 _pingTimer.Start();
 
                 Log("⏰ Timer started - sending control packets every 100ms");
 
-                // Only start listening if Arduino is online
                 if (arduinoOnline)
                 {
                     StartListening(UsvReceivePort);
@@ -106,8 +104,8 @@ namespace USV_Controller_V1._1
                 Log($"📡 USV/Arduino: {UsvIp}:{UsvSendPort} {(arduinoOnline ? "(Online)" : "(Offline - Video Only)")}");
                 Log($"📹 Camera video: {CameraIp}:554 (RTSP)");
                 Log($"🎮 Camera PTZ: ONVIF ContinuousMove (Port {CameraOnvifPort})");
-                Log($"🕹️ Right stick controls camera pan/tilt");
-                Log($"🎮 Xbox Controller: {(_controller.IsConnected ? "Connected ✅" : "NOT CONNECTED ❌")}");
+                Log($"🕹️ X/Y axes control camera pan/tilt when Button 1 pressed");
+                Log($"🎮 Joystick: {(_joystick != null ? "Connected ✅" : "NOT CONNECTED ❌")}");
             }
             catch (Exception ex)
             {
@@ -121,7 +119,7 @@ namespace USV_Controller_V1._1
             }
         }
 
-        private void DisconnectButton_Click(object sender, RoutedEventArgs e)
+        private void DisconnectButton_Click(object? sender, RoutedEventArgs? e)
         {
             _timer.Stop();
             _pingTimer.Stop();
@@ -135,6 +133,8 @@ namespace USV_Controller_V1._1
             _connected = false;
             _isReachable = false;
 
+            _firstPacketSent = false;
+            _throttleZeroed = false;
             Log("⏹ Streaming stopped.");
             Log("🔌 Disconnected from USV.");
             Log("📹 Camera PTZ stopped.");
@@ -142,14 +142,22 @@ namespace USV_Controller_V1._1
 
         private void Timer_Elapsed(object? sender, ElapsedEventArgs e)
         {
-            if (!_connected || !_controller.IsConnected)
+            // ✅ Check if connected and joystick exists
+            if (!_connected || _joystick == null || _joystickState == null)
             {
                 return;
             }
 
-            _gamepad = _controller.GetState().Gamepad;
+            // ✅ Update joystick state
+            UpdateJoystickState();
 
-            // ✅ Send USV packet (only if Arduino is connected)
+            // ✅ Check again after update (joystick might have disconnected)
+            if (_joystick == null || _joystickState == null)
+            {
+                return; // Joystick disconnected, skip this cycle
+            }
+
+            // ✅ Send USV packet
             byte[] usvPacket = BuildPacket();
 
             try
@@ -161,77 +169,140 @@ namespace USV_Controller_V1._1
 
                 Dispatcher.Invoke(() =>
                 {
+                    string packetPreview = "USV: " + BitConverter.ToString(usvPacket).Replace("-", " ");
+
                     if (this.FindName("PacketPreview") is TextBlock tbUsv)
                     {
-                        tbUsv.Text = "USV: " + BitConverter.ToString(usvPacket).Replace("-", " ");
+                        tbUsv.Text = packetPreview;
                     }
+
+                    UpdatePacket(packetPreview);
                 });
             }
             catch (Exception ex)
             {
-                // Silently fail if Arduino not connected
-                // Only log errors occasionally to avoid spam
                 if (DateTime.Now.Second % 10 == 0)
                 {
                     Log($"⚠️ USV send error: {ex.Message}");
                 }
             }
 
-            // ✅ Camera PTZ control via ONVIF ContinuousMove (works independently of Arduino)
+            // ✅ Camera PTZ control via ONVIF
+            // ✅ Camera PTZ control via ONVIF using POV Hat
             try
             {
-                // Read raw Xbox stick values
-                short rawPanX = _gamepad.RightThumbX;
-                short rawTiltY = _gamepad.RightThumbY;
+                double panVelocity = 0;
+                double tiltVelocity = 0;
+                double zoomVelocity = 0;
 
-                // ✅ FIX: Handle the -32768 edge case to avoid math error
-                // Xbox stick range is -32768 to 32767, but we can't negate -32768
-                // So we clamp it to -32767
-                if (rawPanX == -32768) rawPanX = -32767;
-                if (rawTiltY == -32768) rawTiltY = -32767;
+                // ✅ Read POV Hat position
+                int povPosition = _joystickState.PointOfViewControllers[0];
 
-                // Convert Xbox stick values to ONVIF velocity (-1.0 to 1.0)
-                double panVelocity = rawPanX / 32767.0;
-                double tiltVelocity = rawTiltY / 32767.0;
+                // POV values: -1 = centered, 0 = up, 9000 = right, 18000 = down, 27000 = left
+                // Angles are in hundredths of degrees (0-35999)
 
-                // Apply deadzone (reduced from 0.1 to 0.08 for better sensitivity)
-                if (Math.Abs(panVelocity) < 0.08) panVelocity = 0;
-                if (Math.Abs(tiltVelocity) < 0.08) tiltVelocity = 0;
-
-                // Only send command if velocity has changed
-                bool velocityChanged =
-                    Math.Abs(panVelocity - _lastPanVelocity) > 0.01 ||
-                    Math.Abs(tiltVelocity - _lastTiltVelocity) > 0.01;
-
-                if (_ptzController != null && velocityChanged)
+                if (povPosition != -1) // Hat is being pressed
                 {
-                    if (Math.Abs(panVelocity) > 0 || Math.Abs(tiltVelocity) > 0)
+                    // ✅ Set camera speed (adjust this value for faster/slower movement)
+                    double cameraSpeed = 0.5; // 50% speed, range: 0.0 to 1.0
+
+                    // Determine direction based on POV angle
+                    if (povPosition >= 0 && povPosition <= 4500)
                     {
-                        // Send continuous move command
+                        // Up (0° to 45°)
+                        tiltVelocity = cameraSpeed;
+                    }
+                    else if (povPosition > 4500 && povPosition <= 13500)
+                    {
+                        // Right (45° to 135°)
+                        panVelocity = cameraSpeed;
+
+                        // Diagonal: Up-Right
+                        if (povPosition < 9000)
+                            tiltVelocity = cameraSpeed * 0.7;
+                        // Diagonal: Down-Right
+                        else if (povPosition > 9000)
+                            tiltVelocity = -cameraSpeed * 0.7;
+                    }
+                    else if (povPosition > 13500 && povPosition <= 22500)
+                    {
+                        // Down (135° to 225°)
+                        tiltVelocity = -cameraSpeed;
+                    }
+                    else if (povPosition > 22500 && povPosition <= 31500)
+                    {
+                        // Left (225° to 315°)
+                        panVelocity = -cameraSpeed;
+
+                        // Diagonal: Down-Left
+                        if (povPosition < 27000)
+                            tiltVelocity = -cameraSpeed * 0.7;
+                        // Diagonal: Up-Left
+                        else if (povPosition > 27000)
+                            tiltVelocity = cameraSpeed * 0.7;
+                    }
+                    else
+                    {
+                        // Up (315° to 360°)
+                        tiltVelocity = cameraSpeed;
+                    }
+
+                    // ✅ Optional: Add zoom control from slider while using hat
+                    if (_joystickState.Sliders != null && _joystickState.Sliders.Length > 0)
+                    {
+                        int sliderValue = _joystickState.Sliders[0];
+                        int centered = sliderValue - 32768;
+
+                        if (Math.Abs(centered) > 5000)
+                        {
+                            zoomVelocity = -(centered / 32768.0);
+                            zoomVelocity = Math.Clamp(zoomVelocity, -1.0, 1.0);
+                        }
+                    }
+                }
+
+                // ✅ Check if any camera control is active
+                bool hasMovement = Math.Abs(panVelocity) > 0.01 ||
+                                  Math.Abs(tiltVelocity) > 0.01 ||
+                                  Math.Abs(zoomVelocity) > 0.01;
+
+                // ✅ Send command if movement detected or if we need to stop
+                if (_ptzController != null)
+                {
+                    if (hasMovement)
+                    {
                         _ = Task.Run(async () =>
                         {
                             try
                             {
-                                await _ptzController.ContinuousMove(panVelocity, tiltVelocity);
+                                await _ptzController.ContinuousMove(panVelocity, tiltVelocity, zoomVelocity);
                             }
-                            catch { /* Silently ignore camera errors */ }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"ContinuousMove error: {ex.Message}");
+                            }
                         });
+
+                        _lastPanVelocity = panVelocity;
+                        _lastTiltVelocity = tiltVelocity;
                     }
-                    else
+                    else if (_lastPanVelocity != 0 || _lastTiltVelocity != 0)
                     {
-                        // Stop camera when stick is centered
                         _ = Task.Run(async () =>
                         {
                             try
                             {
                                 await _ptzController.Stop();
                             }
-                            catch { /* Silently ignore camera errors */ }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Stop error: {ex.Message}");
+                            }
                         });
-                    }
 
-                    _lastPanVelocity = panVelocity;
-                    _lastTiltVelocity = tiltVelocity;
+                        _lastPanVelocity = 0;
+                        _lastTiltVelocity = 0;
+                    }
                 }
 
                 // Update UI
@@ -239,14 +310,14 @@ namespace USV_Controller_V1._1
                 {
                     if (this.FindName("PacketPreviewCamera") is TextBlock tbCam)
                     {
-                        tbCam.Text = $"CAM: Pan={panVelocity:F2} ({rawPanX}), Tilt={tiltVelocity:F2} ({rawTiltY})";
+                        string hatStatus = povPosition == -1 ? "CENTERED" : $"{povPosition / 100}°";
+                        tbCam.Text = $"CAM [Hat:{hatStatus}]: Pan={panVelocity:F2}, Tilt={tiltVelocity:F2}, Zoom={zoomVelocity:F2}";
                     }
                 });
             }
             catch (Exception ex)
             {
-                // Log camera control errors
-                if (DateTime.Now.Second % 5 == 0) // Log every 5 seconds
+                if (DateTime.Now.Second % 5 == 0)
                 {
                     Log($"⚠️ Camera PTZ error: {ex.Message}");
                 }
@@ -298,20 +369,24 @@ namespace USV_Controller_V1._1
                         Dispatcher.Invoke(() =>
                         {
                             // Update clutch slider
+                            ClutchSlider.Value = ClutchSlider.Maximum + ClutchSlider.Minimum - feedback1;
 
-                            ClutchSlider.Value = ClutchSlider.Maximum + ClutchSlider.Minimum - feedback1; ;
+                            // ✅ CHANGED: Use Z-axis (throttle) instead of LeftThumbY
+                            // Get throttle position (reversed: 0=max, 65535=min)
+                            //if (_joystickState != null)
+                            //{
+                            int throttleRaw = Math.Abs(_joystickState.Z- 65535);
 
-                            // Update RPM gauges
-                            short yAxisLive = _gamepad.LeftThumbY;
-                            double increment = yAxisLive / 3000.0;
-                            X += increment;
-                            X = Math.Clamp(X, 0, 450);
+                            //    double increment = (65535 - throttleRaw) / 20000.0;
+                            //    X += increment;
+                            //    X = Math.Clamp(X, 0, 450);
+                            //}
 
-                            double leftRpm = Map(X, 0, 450, 800, 4000);
-                            double rightRpm = Map(feedback2, 0, 450, 800, 4000);
+                            double leftRpm = Map(throttleRaw, 0, 65535, 0, 100);
+                            double rightRpm = Map(feedback2, 5, 400, 0, 100);
 
                             IntializedRpm(leftRpm);
-                            //FeedbackRpm(rightRpm);
+                            FeedbackRpm(rightRpm);
 
                             // Update steering indicator
                             double steeringAngle = (MapSteeringValue(feedback3) + 2);

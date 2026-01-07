@@ -92,13 +92,14 @@
                     </StackPanel>
                 </GroupBox>
 
-                <!-- UDP Connection -->
-                <GroupBox Header="Connection" FontWeight="Bold" Margin="0,0,0,10">
+                 <!--UDP Connection--> 
+                <!--<GroupBox Header="Connection" FontWeight="Bold" Margin="0,0,0,10">
                     <StackPanel Orientation="Vertical" Margin="10">
-                        <Button x:Name="ConnectButton" Content="Connect" Width="60" Click="ConnectButton_Click"/>
-                        <Button x:Name="DisconnectButton" Content="Disconnect" Width="70" Margin="0,10,0,0" Click="DisconnectButton_Click"/>
+                        
+                        --><!--<Button x:Name="ConnectButton" Content="Connect" Width="60" Click="ConnectButton_Click"/>
+                        <Button x:Name="DisconnectButton" Content="Disconnect" Width="70" Margin="0,10,0,0" Click="DisconnectButton_Click"/>--><!--
                     </StackPanel>
-                </GroupBox>
+                </GroupBox>-->
 
             </StackPanel>
 
@@ -132,7 +133,7 @@
                                       StrokeThickness="3"/>
                                 <Ellipse Width="18" Height="18" Fill="Black" Canvas.Left="116" Canvas.Top="116"/>
                                 <TextBlock x:Name="SpeedValueTextLeft"
-                                           Text="0 RPM"
+                                           Text="0 %"
                                            FontSize="14"
                                            FontWeight="Bold"
                                            Canvas.Left="85"
@@ -140,7 +141,7 @@
                             </Canvas>
                         </Grid>
 
-                        <TextBlock Text="Ordered Speed"
+                        <TextBlock Text="Refrence Speed"
                                    FontWeight="Bold"
                                    FontSize="14"
                                    HorizontalAlignment="Center"
@@ -232,6 +233,14 @@
                                    VerticalAlignment="Bottom"
                                    Margin="0,1"/>
                     </Grid>
+                </GroupBox>
+
+                <GroupBox>
+                    <TextBlock Text="Press Button (7) to Connect / Disconnect"
+                               HorizontalAlignment="Center"
+                               FontSize="16" FontWeight="Bold"
+                               Foreground="#333"
+                               Margin="10"/> 
                 </GroupBox>
 
             </StackPanel>

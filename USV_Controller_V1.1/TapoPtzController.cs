@@ -1,15 +1,14 @@
 ﻿using System;
 using System.Net.Http;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Unicode;
+using System.Threading.Channels;
 using System.Threading.Tasks;
 
 namespace USV_Controller_V1._1
 {
-    /// <summary>
-    /// Tapo Camera PTZ Controller - Using ONVIF ContinuousMove
-    /// Based on actual Wireshark packet capture from AgentDVR
-    /// </summary>
     public class TapoPtzController
     {
         private readonly string _cameraIp;
@@ -27,12 +26,8 @@ namespace USV_Controller_V1._1
             _httpClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
         }
 
-        /// <summary>
-        /// Generate ONVIF Password Digest for authentication
-        /// </summary>
         private (string passwordDigest, string nonce, string created) GeneratePasswordDigest()
         {
-            // Generate random nonce
             byte[] nonceBytes = new byte[16];
             using (var rng = RandomNumberGenerator.Create())
             {
@@ -40,10 +35,8 @@ namespace USV_Controller_V1._1
             }
             string nonceBase64 = Convert.ToBase64String(nonceBytes);
 
-            // Get current UTC time in ISO 8601 format
             string created = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
 
-            // Calculate digest: Base64( SHA1( nonce + created + password ) )
             byte[] createdBytes = Encoding.UTF8.GetBytes(created);
             byte[] passwordBytes = Encoding.UTF8.GetBytes(_password);
 
@@ -60,28 +53,22 @@ namespace USV_Controller_V1._1
             }
         }
 
-        /// <summary>
-        /// Move camera using ONVIF ContinuousMove (for smooth joystick control)
-        /// </summary>
-        public async Task<bool> ContinuousMove(double panVelocity, double tiltVelocity)
+        public async Task<bool> ContinuousMove(double panVelocity, double tiltVelocity, double zoomVelocity = 0)
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine($"📹 ContinuousMove: Pan={panVelocity:F2}, Tilt={tiltVelocity:F2}");
+                System.Diagnostics.Debug.WriteLine($"📹 ContinuousMove: Pan={panVelocity:F2}, Tilt={tiltVelocity:F2}, Zoom={zoomVelocity:F2}");
 
-                // Generate authentication
                 var (passwordDigest, nonce, created) = GeneratePasswordDigest();
 
-                // ONVIF uses -1 to 1 range for velocity
                 double panSpeed = Math.Clamp(panVelocity, -1.0, 1.0);
                 double tiltSpeed = Math.Clamp(tiltVelocity, -1.0, 1.0);
+                double zoomSpeed = Math.Clamp(zoomVelocity, -1.0, 1.0);
 
-                // Try both profile tokens that Tapo cameras use
                 var profileTokens = new[] { "profile_2", "profile_1", "000" };
 
                 foreach (var profileToken in profileTokens)
                 {
-                    // Build ONVIF SOAP envelope with ContinuousMove
                     string soapEnvelope = $@"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"" xmlns:a=""http://www.w3.org/2005/08/addressing"">
   <s:Header>
     <Security s:mustUnderstand=""0"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
@@ -102,29 +89,34 @@ namespace USV_Controller_V1._1
       <ProfileToken>{profileToken}</ProfileToken>
       <Velocity>
         <PanTilt x=""{panSpeed:F2}"" y=""{tiltSpeed:F2}"" space=""http://www.onvif.org/ver10/tptz/PanTiltSpaces/VelocityGenericSpace"" xmlns=""http://www.onvif.org/ver10/schema""/>
+        <Zoom x=""{zoomSpeed:F2}"" space=""http://www.onvif.org/ver10/tptz/ZoomSpaces/VelocityGenericSpace"" xmlns=""http://www.onvif.org/ver10/schema""/>
       </Velocity>
     </ContinuousMove>
   </s:Body>
 </s:Envelope>";
 
-                    var content = new StringContent(soapEnvelope, Encoding.UTF8, "application/soap+xml");
-                    content.Headers.Add("action", "\"http://www.onvif.org/ver20/ptz/wsdl/ContinuousMove\"");
+                    // ✅ FIX: Set Content-Type correctly with action in header
+                    var content = new StringContent(soapEnvelope, Encoding.UTF8);
+                    content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/soap+xml")
+                    {
+                        CharSet = "utf-8"
+                    };
+                    content.Headers.ContentType.Parameters.Add(new System.Net.Http.Headers.NameValueHeaderValue("action", "\"http://www.onvif.org/ver20/ptz/wsdl/ContinuousMove\""));
 
                     string url = $"http://{_cameraIp}:{_cameraPort}/onvif/service";
-
-                    System.Diagnostics.Debug.WriteLine($"📤 POST {url} with profile: {profileToken}");
 
                     var response = await _httpClient.PostAsync(url, content);
                     var responseText = await response.Content.ReadAsStringAsync();
 
                     if (response.IsSuccessStatusCode && !responseText.Contains("Fault"))
                     {
-                        System.Diagnostics.Debug.WriteLine($"✅ PTZ Success with {profileToken}!");
+                        System.Diagnostics.Debug.WriteLine($"✅ PTZ ContinuousMove Success with {profileToken}!");
                         return true;
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"⚠️ Failed with {profileToken}: {response.StatusCode}");
+                        System.Diagnostics.Debug.WriteLine($"⚠️ ContinuousMove failed with {profileToken}: {response.StatusCode}");
+                        System.Diagnostics.Debug.WriteLine($"Response: {responseText}");
                     }
                 }
 
@@ -150,6 +142,7 @@ namespace USV_Controller_V1._1
 
                 foreach (var profileToken in profileTokens)
                 {
+                    // ✅ FIX: Set Zoom to TRUE like in Wireshark capture
                     string soapEnvelope = $@"<s:Envelope xmlns:s=""http://www.w3.org/2003/05/soap-envelope"" xmlns:a=""http://www.w3.org/2005/08/addressing"">
   <s:Header>
     <Security s:mustUnderstand=""0"" xmlns=""http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"">
@@ -169,22 +162,33 @@ namespace USV_Controller_V1._1
     <Stop xmlns=""http://www.onvif.org/ver20/ptz/wsdl"">
       <ProfileToken>{profileToken}</ProfileToken>
       <PanTilt>true</PanTilt>
-      <Zoom>false</Zoom>
+      <Zoom>true</Zoom>
     </Stop>
   </s:Body>
 </s:Envelope>";
 
-                    var content = new StringContent(soapEnvelope, Encoding.UTF8, "application/soap+xml");
-                    content.Headers.Add("action", "\"http://www.onvif.org/ver20/ptz/wsdl/Stop\"");
+                    // ✅ FIX: Set Content-Type correctly with action in header
+                    var content = new StringContent(soapEnvelope, Encoding.UTF8);
+                    content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/soap+xml")
+                    {
+                        CharSet = "utf-8"
+                    };
+                    content.Headers.ContentType.Parameters.Add(new System.Net.Http.Headers.NameValueHeaderValue("action", "\"http://www.onvif.org/ver20/ptz/wsdl/Stop\""));
 
                     string url = $"http://{_cameraIp}:{_cameraPort}/onvif/service";
 
                     var response = await _httpClient.PostAsync(url, content);
+                    var responseText = await response.Content.ReadAsStringAsync();
 
-                    if (response.IsSuccessStatusCode)
+                    if (response.IsSuccessStatusCode && !responseText.Contains("Fault"))
                     {
                         System.Diagnostics.Debug.WriteLine($"✅ Stop Success with {profileToken}!");
                         return true;
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"⚠️ Stop failed with {profileToken}: {response.StatusCode}");
+                        System.Diagnostics.Debug.WriteLine($"Response: {responseText}");
                     }
                 }
 

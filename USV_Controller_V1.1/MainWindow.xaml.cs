@@ -2,7 +2,7 @@
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.WPF;
-using SharpDX.XInput;
+using SharpDX.DirectInput; // ✅ CHANGED: DirectInput instead of XInput
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -32,13 +32,18 @@ namespace USV_Controller_V1._1
         private UdpClient? _listener;
         private bool _connected = false;
         private readonly System.Timers.Timer _timer;
-        private readonly Controller _controller;
-        private Gamepad _gamepad;
+
+        // ✅ CHANGED: DirectInput objects instead of XInput
+        private DirectInput? _directInput;
+        private Joystick? _joystick;
+        private JoystickState _joystickState;
+        private bool _firstPacketSent = false;
+        private bool _throttleZeroed = false;
+        // ✅ NEW: Pre-connection timer to poll joystick buttons
+        private readonly System.Timers.Timer _joystickPollTimer;
+        private bool _button6WasPressed = false;  // Track button state to prevent repeated triggers
         private readonly DispatcherTimer _linkTimer;
         private bool _linkOn = false;
-
-        private double X = 0;
-
 
         private readonly System.Timers.Timer _pingTimer;
         private bool _isReachable = false;
@@ -48,7 +53,7 @@ namespace USV_Controller_V1._1
         private const int CameraOnvifPort = 2020;
         private const string CameraUsername = "SMBSMB";
         private const string CameraPassword = "smbsmbsmb";
-        private const string CameraRtspPath = "/stream2";
+        private const string CameraRtspPath = "/stream1";
 
         private TapoPtzController? _ptzController;
 
@@ -76,7 +81,6 @@ namespace USV_Controller_V1._1
 
             try
             {
-
                 var camWin = new CameraWindow(rtspUrl)
                 {
                     Owner = this
@@ -106,6 +110,115 @@ namespace USV_Controller_V1._1
             }
         }
 
+        // ✅ NEW: Initialize DirectInput Joystick
+        // ✅ IMPROVED: Initialize DirectInput Joystick with comprehensive detection
+        // ✅ IMPROVED: Initialize DirectInput Joystick with comprehensive detection
+        // ✅ CLEAN & MINIMAL: Initialize DirectInput Joystick
+        private void InitializeJoystick()
+        {
+            try
+            {
+                _directInput = new DirectInput();
+
+                // Find first game controller (covers all game device types)
+                var joystickGuid = Guid.Empty;
+                string deviceName = "";
+
+                foreach (var device in _directInput.GetDevices(DeviceClass.GameControl, DeviceEnumerationFlags.AttachedOnly))
+                {
+                    joystickGuid = device.InstanceGuid;
+                    deviceName = device.ProductName;
+                    break;
+                }
+
+                if (joystickGuid == Guid.Empty)
+                {
+                    Log("⚠️ No joystick detected!");
+                    return;
+                }
+
+                _joystick = new Joystick(_directInput, joystickGuid);
+                _joystick.Properties.BufferSize = 128;
+                _joystick.Acquire();
+                _joystickState = new JoystickState();
+
+                Log($"🎮 {deviceName} connected successfully.");
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ Joystick initialization failed: {ex.Message}");
+            }
+        }
+
+        // ✅ NEW: Update joystick state (replaces gamepad polling)
+        // ✅ IMPROVED: Update joystick state with disconnect detection
+        private void UpdateJoystickState()
+        {
+            if (_joystick != null && _joystickState != null)
+            {
+                try
+                {
+                    _joystick.Poll();
+                    _joystick.GetCurrentState(ref _joystickState);
+                }
+                catch (SharpDX.SharpDXException)
+                {
+                    // Joystick disconnected during operation
+                    Log("⚠️ Joystick disconnected during operation");
+
+                    try
+                    {
+                        _joystick?.Unacquire();
+                        _joystick?.Dispose();
+                    }
+                    catch { }
+
+                    _joystick = null;
+                    _joystickState = null;
+                }
+                catch (Exception)
+                {
+                    // Ignore other errors
+                }
+            }
+        }
+
+        // ✅ NEW: Clean up joystick
+        private void CleanupJoystick()
+        {
+            try
+            {
+                _joystick?.Unacquire();
+                _joystick?.Dispose();
+                _directInput?.Dispose();
+                Log("🎮 Joystick disconnected.");
+            }
+
+            catch (SharpDX.SharpDXException)
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (_joystick != null)
+                    {
+                        Log("⚠️ Joystick unplugged - attempting reconnection...");
+                        ResetJoystickSafety(); // ✅ Reset safety flags
+                    }
+                });
+            }
+
+            catch (Exception ex)
+            {
+                Log($"⚠️ Joystick cleanup error: {ex.Message}");
+            }
+        }
+
+        // ✅ NEW: Reset safety flags when joystick disconnects
+        private void ResetJoystickSafety()
+        {
+            _firstPacketSent = false;
+            _throttleZeroed = false;
+            _button6WasPressed = false;
+        }
         public MainWindow()
         {
             InitializeComponent();
@@ -125,8 +238,13 @@ namespace USV_Controller_V1._1
             _timer = new System.Timers.Timer(100);
             _timer.Elapsed += Timer_Elapsed;
 
-            _controller = new Controller(UserIndex.One);
-            Log(_controller.IsConnected ? "🎮 Xbox controller connected." : "⚠️ No Xbox controller detected!");
+            // ✅ CHANGED: Initialize DirectInput joystick instead of XInput controller
+            InitializeJoystick();
+
+            // ✅ NEW: Joystick button poll timer (always running to detect Button 6)
+            _joystickPollTimer = new System.Timers.Timer(100);  // Poll every 100ms
+            _joystickPollTimer.Elapsed += JoystickPollTimer_Elapsed;
+            _joystickPollTimer.Start();  // Start immediately
 
             _linkTimer = new DispatcherTimer();
             _linkTimer.Interval = TimeSpan.FromMilliseconds(400);
@@ -174,6 +292,123 @@ namespace USV_Controller_V1._1
             }
         }
 
+        // ✅ NEW: Poll joystick buttons even when not connected
+        // ✅ ENHANCED: Poll joystick with disconnect/reconnect detection
+        private void JoystickPollTimer_Elapsed(object? sender, ElapsedEventArgs e)
+        {
+            // Try to poll existing joystick
+            if (_joystick != null && _joystickState != null)
+            {
+                try
+                {
+                    // Update joystick state
+                    _joystick.Poll();
+                    _joystick.GetCurrentState(ref _joystickState);
+
+                    // Check if Button 6 is pressed
+                    bool button6Pressed = _joystickState.Buttons[6];
+
+                    // Detect button press (not held - only trigger once per press)
+                    if (button6Pressed && !_button6WasPressed)
+                    {
+                        _button6WasPressed = true;
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (!_connected)
+                            {
+                                Log("🎮 Button 6 pressed - Connecting...");
+                                ConnectButton_Click(null, null);
+                            }
+                            else
+                            {
+                                Log("🎮 Button 6 pressed - Disconnecting...");
+                                DisconnectButton_Click(null, null);
+                            }
+                        });
+                    }
+                    else if (!button6Pressed)
+                    {
+                        _button6WasPressed = false;
+                    }
+                }
+                catch (SharpDX.SharpDXException)
+                {
+                    // Joystick disconnected
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (_joystick != null) // Only log if we had a joystick
+                        {
+                            Log("⚠️ Joystick unplugged - attempting reconnection...");
+                        }
+                    });
+
+                    // Clean up current joystick
+                    try
+                    {
+                        _joystick?.Unacquire();
+                        _joystick?.Dispose();
+                    }
+                    catch { }
+
+                    _joystick = null;
+                    _joystickState = null;
+
+                    // Attempt to reconnect
+                    AttemptJoystickReconnect();
+                }
+                catch (Exception)
+                {
+                    // Other errors - ignore silently
+                }
+            }
+            else
+            {
+                // No joystick connected - try to reconnect
+                AttemptJoystickReconnect();
+            }
+        }
+
+        // ✅ NEW: Attempt to reconnect joystick
+        private void AttemptJoystickReconnect()
+        {
+            try
+            {
+                if (_directInput == null)
+                {
+                    _directInput = new DirectInput();
+                }
+
+                // Find first game controller
+                var joystickGuid = Guid.Empty;
+                string deviceName = "";
+
+                foreach (var device in _directInput.GetDevices(DeviceClass.GameControl, DeviceEnumerationFlags.AttachedOnly))
+                {
+                    joystickGuid = device.InstanceGuid;
+                    deviceName = device.ProductName;
+                    break;
+                }
+
+                if (joystickGuid != Guid.Empty)
+                {
+                    // Found a joystick - connect to it
+                    _joystick = new Joystick(_directInput, joystickGuid);
+                    _joystick.Properties.BufferSize = 128;
+                    _joystick.Acquire();
+                    _joystickState = new JoystickState();
+
+                    Dispatcher.Invoke(() =>
+                    {
+                        Log($"✅ Joystick reconnected: {deviceName}");
+                    });
+                }
+            }
+            catch (Exception)
+            {
+                // Silently fail - will retry on next poll
+            }
+        }
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
             this.Left = 630;      // Adjust for your monitor
@@ -203,11 +438,15 @@ namespace USV_Controller_V1._1
             _timer?.Stop();
             _pingTimer?.Stop();
             _linkTimer?.Stop();
+            _joystickPollTimer?.Stop();
 
             try { usvClient?.Close(); } catch { }
             try { camClient?.Close(); } catch { }
             try { _listener?.Close(); } catch { }
             try { _ptzController?.Dispose(); } catch { }
+
+            // ✅ NEW: Clean up joystick
+            CleanupJoystick();
 
             if (_monitor != null)
                 _monitor.Close();
@@ -237,6 +476,5 @@ namespace USV_Controller_V1._1
         // ---------------------------------------
         // KEEP ALL YOUR OTHER METHODS AS THEY ARE
         // ---------------------------------------
-
     }
 }

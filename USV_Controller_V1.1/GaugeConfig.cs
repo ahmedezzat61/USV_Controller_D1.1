@@ -1,4 +1,4 @@
-using LiveChartsCore;
+﻿using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.WPF;
@@ -65,18 +65,18 @@ namespace USV_Controller_V1._1
 
         private void IntializedRpm(double rpm)
         {
-            rpm = Math.Clamp(rpm, 0, 4000);
-            double angle = -90 + (rpm / 4000.0 * 180.0);
+            rpm = Math.Clamp(rpm, 0, 100);
+            double angle = -90 + (rpm / 100.0 * 180.0);
             GaugeNeedleLeft.RenderTransform = new RotateTransform(angle, 125, 125);
-            SpeedValueTextLeft.Text = $"{rpm:F0} RPM";
+            SpeedValueTextLeft.Text = $"{rpm:F0} %";
         }
 
         private void FeedbackRpm(double rpm)
         {
-            rpm = Math.Clamp(rpm, 0, 4000);
-            double angle = -90 + (rpm / 4000.0 * 180.0);
+            rpm = Math.Clamp(rpm, 0, 100);
+            double angle = -90 + (rpm / 100.0 * 180.0);
             GaugeNeedleRight.RenderTransform = new RotateTransform(angle, 125, 125);
-            SpeedValueTextRight.Text = $"{rpm:F0} RPM";
+            SpeedValueTextRight.Text = $"{rpm:F0} %";
         }
     }
 }
