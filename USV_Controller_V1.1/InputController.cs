@@ -18,6 +18,14 @@ namespace USV_Controller_V1._1
         private const int UsvSendPort = 8888;               // Arduino RECEIVES control on 8888
         private const int UsvReceivePort = 8889;            // Arduino SENDS feedback on 8889
 
+        //Esp32 Configuration
+        private const string EspIp = "192.168.0.178";      // Esp IP when connected
+        private const int EspPort = 8890;               // Esp RECEIVES control on 8890
+
+        // ✅ Feedback values received from USV (shared between threads)
+        private volatile byte _positionRelayFeedback = 0;
+        private volatile byte _speedRelayFeedback = 0;
+
 
         // ✅ Camera Configuration
         // Camera IP: 192.168.0.50
@@ -75,6 +83,9 @@ namespace USV_Controller_V1._1
 
                 usvEndpoint = new IPEndPoint(IPAddress.Parse(UsvIp), UsvSendPort);
                 usvClient = new UdpClient();
+
+                espEndpoint = new IPEndPoint(IPAddress.Parse(EspIp), EspPort);
+                espClient = new UdpClient();
 
                 _connected = true;
                 _isReachable = arduinoOnline;
@@ -184,6 +195,35 @@ namespace USV_Controller_V1._1
                 if (DateTime.Now.Second % 10 == 0)
                 {
                     Log($"⚠️ USV send error: {ex.Message}");
+                }
+            }
+
+            byte[] espPacket = BuildPacket2();
+
+            try
+            {
+                if (espClient != null && espEndpoint != null)
+                {
+                    espClient.Send(espPacket, espPacket.Length, espEndpoint);
+                }
+
+                //Dispatcher.Invoke(() =>
+                //{
+                //    string packetPreview = "ESP: " + BitConverter.ToString(espPacket).Replace("-", " ");
+
+                //    if (this.FindName("PacketPreview") is TextBlock tbEsp)
+                //    {
+                //        tbEsp.Text = packetPreview;
+                //    }
+
+                //    UpdatePacket(packetPreview);
+                //});
+            }
+            catch (Exception ex)
+            {
+                if (DateTime.Now.Second % 10 == 0)
+                {
+                    Log($"⚠️ Esp send error: {ex.Message}");
                 }
             }
 
@@ -359,12 +399,15 @@ namespace USV_Controller_V1._1
                     var result = await _listener.ReceiveAsync();
                     byte[] data = result.Buffer;
 
-                    if (data.Length == 7)
+                    if (data.Length == 9)
                     {
                         int feedback1 = (data[0] << 8) | data[1];
                         int feedback2 = (data[2] << 8) | data[3];
                         int feedback3 = (data[4] << 8) | data[5];
                         bool relay1 = data[6] == 1;
+                        _positionRelayFeedback = data[7];
+                        _speedRelayFeedback = data[8];
+
 
                         Dispatcher.Invoke(() =>
                         {

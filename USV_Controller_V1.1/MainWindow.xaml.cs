@@ -28,6 +28,8 @@ namespace USV_Controller_V1._1
         private UdpClient? camClient;
         private IPEndPoint? usvEndpoint;
         private IPEndPoint? camEndpoint;
+        private UdpClient? espClient;
+        private IPEndPoint? espEndpoint;
 
         private UdpClient? _listener;
         private bool _connected = false;
@@ -280,16 +282,16 @@ namespace USV_Controller_V1._1
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
 
-            try
-            {
-                string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "OpenCPN", "opencpn.exe");
-                Process.Start(exePath);
-                Log("🗺️ OpenCPN launched successfully");
-            }
-            catch (Exception ex)
-            {
-                Log($"⚠️ Could not start OpenCPN: {ex.Message}");
-            }
+            //try
+            //{
+            //    string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "OpenCPN", "opencpn.exe");
+            //    Process.Start(exePath);
+            //    Log("🗺️ OpenCPN launched successfully");
+            //}
+            //catch (Exception ex)
+            //{
+            //    Log($"⚠️ Could not start OpenCPN: {ex.Message}");
+            //}
         }
 
         // ✅ NEW: Poll joystick buttons even when not connected

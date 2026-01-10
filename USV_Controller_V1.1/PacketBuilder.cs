@@ -133,7 +133,7 @@ namespace USV_Controller_V1._1
             byte forward = _joystickState.Buttons[15] ? (byte)1 : (byte)0;
             byte backward = _joystickState.Buttons[13] ? (byte)1 : (byte)0; 
             byte nutral = _joystickState.Buttons[14] ? (byte)1 : (byte)0;  
-            byte watchdog = _joystickState.Buttons[12] ? (byte)1 : (byte)0; 
+            byte watchdog = 0; 
 
             byte[] packet = new byte[14];
             packet[0] = (byte)(speedAxis >> 8);     // ✅ Throttle (Z-axis) high byte
@@ -152,12 +152,45 @@ namespace USV_Controller_V1._1
             packet[13] = watchdog; 
             
             return packet;
+
         }
 
-        
-        
+        private byte[] BuildPacket2()
+        {
 
-       
-        
+
+           
+            byte watchdog = _joystickState.Buttons[12] ? (byte)1 : (byte)0;
+            // 1. Keep them as booleans for the logic
+            bool isExplode1Pressed = _joystickState.Buttons[0];
+            bool isExplode2Pressed = _joystickState.Buttons[5];
+
+            // 2. Use the logical AND operator (&&)
+            bool shouldExplode = isExplode1Pressed && isExplode2Pressed;
+
+            // 3. Convert to byte only if needed for the final output
+            byte explodeFinal = shouldExplode ? (byte)1 : (byte)0;
+
+
+            byte[] packet = new byte[4];
+            packet[0] = watchdog;    
+            packet[1] = explodeFinal;
+            packet[2] = _positionRelayFeedback;
+            packet[3] = _speedRelayFeedback;
+
+
+
+            return packet;
+
+
+
+        }
+
+
+
+
+
+
+
     }
 }
