@@ -2,7 +2,7 @@
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.WPF;
-using SharpDX.DirectInput; // ✅ CHANGED: DirectInput instead of XInput
+using SharpDX.DirectInput;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -16,6 +16,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Windows.Forms;
+using System.Windows.Shapes;
 
 namespace USV_Controller_V1._1
 {
@@ -35,20 +36,26 @@ namespace USV_Controller_V1._1
         private bool _connected = false;
         private readonly System.Timers.Timer _timer;
 
-        // ✅ CHANGED: DirectInput objects instead of XInput
+        // ✅ DirectInput objects
         private DirectInput? _directInput;
         private Joystick? _joystick;
         private JoystickState _joystickState;
         private bool _firstPacketSent = false;
         private bool _throttleZeroed = false;
-        // ✅ NEW: Pre-connection timer to poll joystick buttons
+
+        // ✅ Pre-connection timer to poll joystick buttons
         private readonly System.Timers.Timer _joystickPollTimer;
-        private bool _button6WasPressed = false;  // Track button state to prevent repeated triggers
+        private bool _button6WasPressed = false;
         private readonly DispatcherTimer _linkTimer;
         private bool _linkOn = false;
 
         private readonly System.Timers.Timer _pingTimer;
         private bool _isReachable = false;
+
+        // ✅ NEW: ESP feedback timeout tracking
+        private DateTime _lastEspFeedbackTime = DateTime.MinValue;
+        private readonly System.Timers.Timer _espStatusTimer;
+        private const int ESP_FEEDBACK_TIMEOUT_MS = 2000; // 2 seconds
 
         private const string CameraIp = "192.168.0.50";
         private const int CameraRtspPort = 554;
@@ -61,17 +68,14 @@ namespace USV_Controller_V1._1
 
         private void OpenCameraWindow()
         {
-            // ✅ Build RTSP URL with authentication
             string rtspUrl;
 
             if (!string.IsNullOrEmpty(CameraUsername) && !string.IsNullOrEmpty(CameraPassword))
             {
-                // With authentication
                 rtspUrl = $"rtsp://{CameraUsername}:{CameraPassword}@{CameraIp}:{CameraRtspPort}{CameraRtspPath}";
             }
             else
             {
-                // Without authentication
                 rtspUrl = $"rtsp://{CameraIp}:{CameraRtspPort}{CameraRtspPath}";
             }
 
@@ -112,17 +116,12 @@ namespace USV_Controller_V1._1
             }
         }
 
-        // ✅ NEW: Initialize DirectInput Joystick
-        // ✅ IMPROVED: Initialize DirectInput Joystick with comprehensive detection
-        // ✅ IMPROVED: Initialize DirectInput Joystick with comprehensive detection
-        // ✅ CLEAN & MINIMAL: Initialize DirectInput Joystick
         private void InitializeJoystick()
         {
             try
             {
                 _directInput = new DirectInput();
 
-                // Find first game controller (covers all game device types)
                 var joystickGuid = Guid.Empty;
                 string deviceName = "";
 
@@ -152,8 +151,6 @@ namespace USV_Controller_V1._1
             }
         }
 
-        // ✅ NEW: Update joystick state (replaces gamepad polling)
-        // ✅ IMPROVED: Update joystick state with disconnect detection
         private void UpdateJoystickState()
         {
             if (_joystick != null && _joystickState != null)
@@ -165,7 +162,6 @@ namespace USV_Controller_V1._1
                 }
                 catch (SharpDX.SharpDXException)
                 {
-                    // Joystick disconnected during operation
                     Log("⚠️ Joystick disconnected during operation");
 
                     try
@@ -185,7 +181,6 @@ namespace USV_Controller_V1._1
             }
         }
 
-        // ✅ NEW: Clean up joystick
         private void CleanupJoystick()
         {
             try
@@ -195,7 +190,6 @@ namespace USV_Controller_V1._1
                 _directInput?.Dispose();
                 Log("🎮 Joystick disconnected.");
             }
-
             catch (SharpDX.SharpDXException)
             {
                 Dispatcher.Invoke(() =>
@@ -203,31 +197,58 @@ namespace USV_Controller_V1._1
                     if (_joystick != null)
                     {
                         Log("⚠️ Joystick unplugged - attempting reconnection...");
-                        ResetJoystickSafety(); // ✅ Reset safety flags
+                        ResetJoystickSafety();
                     }
                 });
             }
-
             catch (Exception ex)
             {
                 Log($"⚠️ Joystick cleanup error: {ex.Message}");
             }
         }
 
-        // ✅ NEW: Reset safety flags when joystick disconnects
         private void ResetJoystickSafety()
         {
             _firstPacketSent = false;
             _throttleZeroed = false;
             _button6WasPressed = false;
         }
+
+        // ✅ NEW: Update ESP LED indicators
+        private void UpdateEspLeds(bool relay1, bool relay2, bool relay3, bool relay4, bool relay5)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                // Update LED colors based on relay states
+                EspRelay1Led.Fill = relay1 ? Brushes.LimeGreen : Brushes.Red;
+                EspRelay2Led.Fill = relay2 ? Brushes.LimeGreen : Brushes.Red;
+                EspRelay3Led.Fill = relay3 ? Brushes.LimeGreen : Brushes.Red;
+                EspRelay4Led.Fill = relay4 ? Brushes.LimeGreen : Brushes.Red;
+                if (relay5 == true)
+                {
+                    Log("Watchdog activated, Arduino is restarting... ");
+                }
+                
+            });
+        }
+
+        // ✅ NEW: Reset ESP LEDs to gray (no feedback)
+        private void ResetEspLeds()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                EspRelay1Led.Fill = Brushes.Gray;
+                EspRelay2Led.Fill = Brushes.Gray;
+                EspRelay3Led.Fill = Brushes.Gray;
+                EspRelay4Led.Fill = Brushes.Gray;
+                //EspRelay5Led.Fill = Brushes.Gray;
+            });
+        }
+
         public MainWindow()
         {
             InitializeComponent();
 
-            // --------------------------
-            // NEW — open monitor window
-            // --------------------------
             _monitor = new MonitorWindow();
             _monitor.Show();
 
@@ -240,13 +261,16 @@ namespace USV_Controller_V1._1
             _timer = new System.Timers.Timer(100);
             _timer.Elapsed += Timer_Elapsed;
 
-            // ✅ CHANGED: Initialize DirectInput joystick instead of XInput controller
             InitializeJoystick();
 
-            // ✅ NEW: Joystick button poll timer (always running to detect Button 6)
-            _joystickPollTimer = new System.Timers.Timer(100);  // Poll every 100ms
+            _joystickPollTimer = new System.Timers.Timer(100);
             _joystickPollTimer.Elapsed += JoystickPollTimer_Elapsed;
-            _joystickPollTimer.Start();  // Start immediately
+            _joystickPollTimer.Start();
+
+            // ✅ NEW: ESP status timer to check for timeout
+            _espStatusTimer = new System.Timers.Timer(500); // Check every 500ms
+            _espStatusTimer.Elapsed += EspStatusTimer_Elapsed;
+            _espStatusTimer.Start();
 
             _linkTimer = new DispatcherTimer();
             _linkTimer.Interval = TimeSpan.FromMilliseconds(400);
@@ -294,23 +318,37 @@ namespace USV_Controller_V1._1
             //}
         }
 
-        // ✅ NEW: Poll joystick buttons even when not connected
-        // ✅ ENHANCED: Poll joystick with disconnect/reconnect detection
+        // ✅ NEW: ESP status timeout check
+        private void EspStatusTimer_Elapsed(object? sender, ElapsedEventArgs e)
+        {
+            if (_connected && _lastEspFeedbackTime != DateTime.MinValue)
+            {
+                var timeSinceLastFeedback = (DateTime.Now - _lastEspFeedbackTime).TotalMilliseconds;
+
+                if (timeSinceLastFeedback > ESP_FEEDBACK_TIMEOUT_MS)
+                {
+                    // No feedback received for 2 seconds - set LEDs to gray
+                    ResetEspLeds();
+                }
+            }
+            else if (!_connected)
+            {
+                // Not connected - ensure LEDs are gray
+                ResetEspLeds();
+            }
+        }
+
         private void JoystickPollTimer_Elapsed(object? sender, ElapsedEventArgs e)
         {
-            // Try to poll existing joystick
             if (_joystick != null && _joystickState != null)
             {
                 try
                 {
-                    // Update joystick state
                     _joystick.Poll();
                     _joystick.GetCurrentState(ref _joystickState);
 
-                    // Check if Button 6 is pressed
                     bool button6Pressed = _joystickState.Buttons[6];
 
-                    // Detect button press (not held - only trigger once per press)
                     if (button6Pressed && !_button6WasPressed)
                     {
                         _button6WasPressed = true;
@@ -336,16 +374,14 @@ namespace USV_Controller_V1._1
                 }
                 catch (SharpDX.SharpDXException)
                 {
-                    // Joystick disconnected
                     Dispatcher.Invoke(() =>
                     {
-                        if (_joystick != null) // Only log if we had a joystick
+                        if (_joystick != null)
                         {
                             Log("⚠️ Joystick unplugged - attempting reconnection...");
                         }
                     });
 
-                    // Clean up current joystick
                     try
                     {
                         _joystick?.Unacquire();
@@ -356,22 +392,19 @@ namespace USV_Controller_V1._1
                     _joystick = null;
                     _joystickState = null;
 
-                    // Attempt to reconnect
                     AttemptJoystickReconnect();
                 }
                 catch (Exception)
                 {
-                    // Other errors - ignore silently
+                    // Ignore other errors
                 }
             }
             else
             {
-                // No joystick connected - try to reconnect
                 AttemptJoystickReconnect();
             }
         }
 
-        // ✅ NEW: Attempt to reconnect joystick
         private void AttemptJoystickReconnect()
         {
             try
@@ -381,7 +414,6 @@ namespace USV_Controller_V1._1
                     _directInput = new DirectInput();
                 }
 
-                // Find first game controller
                 var joystickGuid = Guid.Empty;
                 string deviceName = "";
 
@@ -394,7 +426,6 @@ namespace USV_Controller_V1._1
 
                 if (joystickGuid != Guid.Empty)
                 {
-                    // Found a joystick - connect to it
                     _joystick = new Joystick(_directInput, joystickGuid);
                     _joystick.Properties.BufferSize = 128;
                     _joystick.Acquire();
@@ -411,14 +442,16 @@ namespace USV_Controller_V1._1
                 // Silently fail - will retry on next poll
             }
         }
+
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            this.Left = 630;      // Adjust for your monitor
+            this.Left = 630;
             this.Top = 0;
-            this.Width = 660;    // Your preferred width
-            this.Height = 680;    // Your preferred height
+            this.Width = 660;
+            this.Height = 680;
 
             Log("✅ USV Controller initialized and ready.");
+            Log("🎮 Press Button 7 to Connect/Disconnect");
             this.Activate();
             this.Focus();
 
@@ -441,13 +474,13 @@ namespace USV_Controller_V1._1
             _pingTimer?.Stop();
             _linkTimer?.Stop();
             _joystickPollTimer?.Stop();
+            _espStatusTimer?.Stop();
 
             try { usvClient?.Close(); } catch { }
             try { camClient?.Close(); } catch { }
             try { _listener?.Close(); } catch { }
             try { _ptzController?.Dispose(); } catch { }
 
-            // ✅ NEW: Clean up joystick
             CleanupJoystick();
 
             if (_monitor != null)
@@ -456,9 +489,6 @@ namespace USV_Controller_V1._1
             Log("👋 Application closed");
         }
 
-        // -------------------------------------------------
-        // MODIFIED: Log now also writes to MonitorWindow
-        // -------------------------------------------------
         private void Log(string msg)
         {
             Dispatcher.Invoke(() =>
@@ -467,16 +497,9 @@ namespace USV_Controller_V1._1
             });
         }
 
-        // -------------------------------------------------
-        // MODIFIED: packet preview forwarder
-        // -------------------------------------------------
         private void UpdatePacket(string text)
         {
             _monitor?.UpdatePacket(text);
         }
-
-        // ---------------------------------------
-        // KEEP ALL YOUR OTHER METHODS AS THEY ARE
-        // ---------------------------------------
     }
 }

@@ -16,46 +16,36 @@ namespace USV_Controller_V1._1
 {
     public partial class MainWindow
     {
+        // ✅ Packet sequence counter
+        private byte _usvSequence = 0;
+        private byte _espSequence = 0;
 
         // ✅ Scale DirectInput axis (0-65535) to your required range (0-1023)
         private int ScaleAxis(int value)
         {
-            // Map [0, 65535] → [0, 1023]
             return (int)((value / 65535.0) * 1023.0);
         }
 
         // ✅ Scale DirectInput axis REVERSED (for throttle)
-        // When hand forward (value near 0) → maximum speed (1023)
-        // When hand back (value near 65535) → minimum speed (0)
         private int ScaleAxisReversed(int value)
         {
-            // Map [0, 65535] → [1023, 0] (reversed)
             return 1023 - (int)((value / 65535.0) * 1023.0);
         }
 
         // ✅ Scale centered axis (like rudder) to 0-1023 range
-        // Rudder: Left (-32768) → 0, Center (0) → 512, Right (32767) → 1023
         private int ScaleCenteredAxis(int value)
         {
-            // DirectInput gives 0-65535, center at 32768
-            // Convert to [-32768, 32767] range first
             int centered = value - 32768;
-            
-            // Map [-32768, 32767] → [0, 1023]
             return (int)((centered + 32768) / 64.0);
         }
 
         // ✅ Scale centered axis to signed byte for camera control
-        // Maps centered joystick axis (0-65535, center 32768) to [-127, 127]
         private sbyte ScaleAxisToSignedByte(int value, int deadzone = 3000)
         {
-            // Center the value: 0-65535 → -32768 to 32767
             int centered = value - 32768;
-            
-            // Apply deadzone
+
             if (Math.Abs(centered) < deadzone) return 0;
-            
-            // Map [-32768, 32767] → [-127, 127]
+
             double normalized = centered >= 0 ? centered / 32767.0 : centered / 32768.0;
             int scaled = (int)Math.Round(normalized * 127.0);
             scaled = Math.Clamp(scaled, -127, 127);
@@ -64,133 +54,250 @@ namespace USV_Controller_V1._1
 
         private double ScaleSliderToZoom(int value, int deadzone = 5000)
         {
-            // Center the value: 0-65535 → -32768 to 32767
             int centered = value - 32768;
 
-            // Apply deadzone
             if (Math.Abs(centered) < deadzone) return 0;
 
-            // Map [-32768, 32767] → [1.0, -1.0] (inverted: forward = zoom in = positive)
             double normalized = centered >= 0 ? centered / 32767.0 : centered / 32768.0;
 
-            // Invert so forward slider = positive (zoom in)
             return -Math.Clamp(normalized, -1.0, 1.0);
         }
 
-        
-        // ✅ CORRECTED: USV packet with throttle on Z-axis
+        // ✅ Calculate XOR checksum
+        private byte CalculateChecksum(byte[] data, int length)
+        {
+            byte checksum = 0;
+            for (int i = 0; i < length; i++)
+            {
+                checksum ^= data[i];
+            }
+            return checksum;
+        }
+
+        // ✅ BUILD ARDUINO/USV PACKET (23 bytes total)
+        // Structure: [0xAA] [0x55] [SEQ] [14 data bytes] [CHECKSUM]
         private byte[] BuildPacket()
         {
-            // ✅ Safety check for disconnected joystick
+            // Safety check for disconnected joystick
             if (_joystickState == null)
             {
-                // Return neutral packet if joystick disconnected
-                return new byte[14]
+                byte[] safePacket = new byte[23];
+                safePacket[0] = 0xAA;  // Start byte 1
+                safePacket[1] = 0x55;  // Start byte 2
+                safePacket[2] = _usvSequence++;  // Sequence
+
+                // Neutral data: speedAxis = 1023 (zero throttle), steeringAxis = 512 (center)
+                safePacket[3] = 0x03;  // Speed high byte (1023)
+                safePacket[4] = 0xFF;  // Speed low byte
+                safePacket[5] = 0x02;  // Steering high byte (512)
+                safePacket[6] = 0x00;  // Steering low byte
+
+                // All other bytes remain 0
+                for (int i = 7; i < 17; i++)
                 {
-            0x03, 0xFF, // speedAxis = 1023 (zero throttle for safety)
-            0x02, 0x00, // steeringAxis = 512 (center rudder)
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-                };
+                    safePacket[i] = 0;
+                }
+
+                // Calculate checksum
+                safePacket[17] = CalculateChecksum(safePacket, 17);
+
+                return safePacket;
             }
 
             int throttleValue = _joystickState.Z;
 
-            // ✅ Safety check: Operator must move throttle to minimum first
+            // Safety check: Operator must move throttle to minimum first
             if (!_throttleZeroed)
             {
-                // Check if throttle is at minimum (near 65535)
-                if (throttleValue > 60000)  // Within ~8% of minimum
+                if (throttleValue > 60000)
                 {
                     _throttleZeroed = true;
                     Dispatcher.Invoke(() => Log("✅ Throttle zeroed - control enabled"));
                 }
                 else
                 {
-                    // Force to zero until operator manually zeros throttle
                     throttleValue = 65535;
                 }
             }
 
-            // 🎮 CORRECT AXIS MAPPING:
-            // Z-Axis = Throttle slider (REVERSED: forward = max speed)
-            // RotationZ = Rudder (left/right steering)
-
-            // ✅ Throttle on Z-axis (reversed)
+            // Get control values
             int speedAxis = ScaleAxisReversed(throttleValue);
             speedAxis = Math.Clamp(speedAxis, 0, 1023);
-            
-            // ✅ Rudder control on RotationZ axis (twist/yaw)
+
             int steeringAxis = ScaleCenteredAxis(_joystickState.RotationZ);
             steeringAxis = Math.Clamp(steeringAxis, 0, 1023);
-            
-            // Clutch buttons (buttons 0, 2, 3 - skipping 1 since it's for camera)
+
+            // Button states
             byte start = _joystickState.Buttons[7] ? (byte)1 : (byte)0;
             byte march = _joystickState.Buttons[8] ? (byte)1 : (byte)0;
-            byte b = _joystickState.Buttons[9] ? (byte)1 : (byte)0;  
-            byte tiltup = _joystickState.Buttons[10] ? (byte)1 : (byte)0;  
-            byte tiltdown = _joystickState.Buttons[11] ? (byte)1 : (byte)0;   
+            byte b = _joystickState.Buttons[9] ? (byte)1 : (byte)0;
+            byte tiltup = _joystickState.Buttons[10] ? (byte)1 : (byte)0;
+            byte tiltdown = _joystickState.Buttons[11] ? (byte)1 : (byte)0;
             byte rb = _joystickState.Buttons[12] ? (byte)1 : (byte)0;
             byte forward = _joystickState.Buttons[15] ? (byte)1 : (byte)0;
-            byte backward = _joystickState.Buttons[13] ? (byte)1 : (byte)0; 
-            byte nutral = _joystickState.Buttons[14] ? (byte)1 : (byte)0;  
-            byte watchdog = 0; 
+            byte backward = _joystickState.Buttons[13] ? (byte)1 : (byte)0;
+            byte nutral = _joystickState.Buttons[14] ? (byte)1 : (byte)0;
+            byte watchdog = 0;
 
-            byte[] packet = new byte[14];
-            packet[0] = (byte)(speedAxis >> 8);     // ✅ Throttle (Z-axis) high byte
-            packet[1] = (byte)(speedAxis & 0xFF);   // ✅ Throttle (Z-axis) low byte
-            packet[2] = (byte)(steeringAxis >> 8);     // Rudder (RotationZ) high byte
-            packet[3] = (byte)(steeringAxis & 0xFF);   // Rudder (RotationZ) low byte
-            packet[4] = start;     
-            packet[5] = b;    
-            packet[6] = tiltup;      
-            packet[7] = tiltdown;      
-            packet[8] = march;     
-            packet[9] = rb;   
-            packet[10] = backward; 
-            packet[11] = forward;    
-            packet[12] = nutral; 
-            packet[13] = watchdog; 
-            
+            // Build packet: [0xAA] [0x55] [SEQ] [14 data bytes] [CHECKSUM]
+            byte[] packet = new byte[18];
+
+            // Header
+            packet[0] = 0xAA;  // Start byte 1
+            packet[1] = 0x55;  // Start byte 2
+            packet[2] = _usvSequence++;  // Sequence number
+
+            // Data payload (14 bytes)
+            packet[3] = (byte)(speedAxis >> 8);      // Speed high byte
+            packet[4] = (byte)(speedAxis & 0xFF);    // Speed low byte
+            packet[5] = (byte)(steeringAxis >> 8);   // Steering high byte
+            packet[6] = (byte)(steeringAxis & 0xFF); // Steering low byte
+            packet[7] = start;
+            packet[8] = b;
+            packet[9] = tiltup;
+            packet[10] = tiltdown;
+            packet[11] = march;
+            packet[12] = rb;
+            packet[13] = backward;
+            packet[14] = forward;
+            packet[15] = nutral;
+            packet[16] = watchdog;
+
+            // Checksum (XOR of all previous bytes)
+            packet[17] = CalculateChecksum(packet, 17);
+
             return packet;
-
         }
 
+        // ✅ BUILD ESP32 PACKET (8 bytes total)
+        // Structure: [0xAA] [0x55] [SEQ] [4 data bytes] [CHECKSUM]
         private byte[] BuildPacket2()
         {
+            if (_joystickState == null)
+            {
+                byte[] safePacket = new byte[8];
+                safePacket[0] = 0xAA;
+                safePacket[1] = 0x55;
+                safePacket[2] = _espSequence++;
+                safePacket[3] = 0;  // watchdog
+                safePacket[4] = 0;  // explode
+                safePacket[5] = 0;  // position relay
+                safePacket[6] = 0;  // speed relay
+                safePacket[7] = CalculateChecksum(safePacket, 7);
+                return safePacket;
+            }
 
-
-           
             byte watchdog = _joystickState.Buttons[12] ? (byte)1 : (byte)0;
-            // 1. Keep them as booleans for the logic
+
             bool isExplode1Pressed = _joystickState.Buttons[0];
             bool isExplode2Pressed = _joystickState.Buttons[5];
-
-            // 2. Use the logical AND operator (&&)
             bool shouldExplode = isExplode1Pressed && isExplode2Pressed;
-
-            // 3. Convert to byte only if needed for the final output
             byte explodeFinal = shouldExplode ? (byte)1 : (byte)0;
 
+            // Build packet: [0xAA] [0x55] [SEQ] [4 data bytes] [CHECKSUM]
+            byte[] packet = new byte[8];
 
-            byte[] packet = new byte[4];
-            packet[0] = watchdog;    
-            packet[1] = explodeFinal;
-            packet[2] = _positionRelayFeedback;
-            packet[3] = _speedRelayFeedback;
+            // Header
+            packet[0] = 0xAA;  // Start byte 1
+            packet[1] = 0x55;  // Start byte 2
+            packet[2] = _espSequence++;  // Sequence number
 
+            // Data payload (4 bytes)
+            packet[3] = watchdog;
+            packet[4] = explodeFinal;
+            packet[5] = _positionRelayFeedback;
+            packet[6] = _speedRelayFeedback;
 
+            // Checksum
+            packet[7] = CalculateChecksum(packet, 7);
 
             return packet;
-
-
-
         }
 
+        // ✅ VALIDATE AND PARSE ARDUINO FEEDBACK (13 bytes total)
+        // Structure: [0xAA] [0x55] [SEQ] [9 data bytes] [CHECKSUM]
+        // Data: [Feedback1_H] [Feedback1_L] [Feedback2_H] [Feedback2_L] [Feedback3_H] [Feedback3_L] [Relay1] [PositionRelay] [SpeedRelay]
+        private bool ParseArduinoFeedback(byte[] data, out ArduinoFeedback feedback)
+        {
+            feedback = new ArduinoFeedback();
 
+            // Validate packet length
+            if (data == null || data.Length < 13)
+                return false;
 
+            // Validate start bytes
+            if (data[0] != 0xAA || data[1] != 0x55)
+                return false;
 
+            // Validate checksum
+            byte receivedChecksum = data[12];
+            byte calculatedChecksum = CalculateChecksum(data, 12);
+            if (receivedChecksum != calculatedChecksum)
+                return false;
 
+            // Extract data
+            feedback.Sequence = data[2];
+            feedback.Feedback1 = (data[3] << 8) | data[4];  // 2 bytes
+            feedback.Feedback2 = (data[5] << 8) | data[6];  // 2 bytes
+            feedback.Feedback3 = (data[7] << 8) | data[8];  // 2 bytes
+            feedback.Relay1 = data[9] == 1;
+            feedback.PositionRelay = data[10];  // ✅ This gets forwarded to ESP
+            feedback.SpeedRelay = data[11];     // ✅ This gets forwarded to ESP
 
+            return true;
+        }
 
+        // ✅ VALIDATE AND PARSE ESP32 FEEDBACK (10 bytes total)
+        // Structure: [0xAA] [0x55] [SEQ] [5 data bytes] [CHECKSUM]
+        private bool ParseEspFeedback(byte[] data, out EspFeedback feedback)
+        {
+            feedback = new EspFeedback();
+
+            // Validate packet length
+            if (data == null || data.Length < 9)
+                return false;
+
+            // Validate start bytes
+            if (data[0] != 0xAA || data[1] != 0x55)
+                return false;
+
+            // Validate checksum
+            byte receivedChecksum = data[8];
+            byte calculatedChecksum = CalculateChecksum(data, 8);
+            if (receivedChecksum != calculatedChecksum)
+                return false;
+
+            // Extract data
+            feedback.Sequence = data[2];
+            feedback.Relay1 = data[3] == 1;  // Door/Gate
+            feedback.Relay2 = data[4] == 1;  // Position
+            feedback.Relay3 = data[5] == 1;  // Speed
+            feedback.Relay4 = data[6] == 1;  // Fire
+            feedback.Relay5 = data[7] == 1;  // Watchdog
+
+            return true;
+        }
+    }
+
+    // ✅ Feedback data structures
+    public struct ArduinoFeedback
+    {
+        public byte Sequence;
+        public int Feedback1;
+        public int Feedback2;
+        public int Feedback3;
+        public bool Relay1;
+        public byte PositionRelay;
+        public byte SpeedRelay;
+    }
+
+    public struct EspFeedback
+    {
+        public byte Sequence;
+        public bool Relay1;  // Door/Gate (RFID)
+        public bool Relay2;  // Position
+        public bool Relay3;  // Speed
+        public bool Relay4;  // Fire
+        public bool Relay5;  // Watchdog
     }
 }

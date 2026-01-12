@@ -14,32 +14,29 @@ namespace USV_Controller_V1._1
     public partial class MainWindow
     {
         // ✅ USV/Arduino Configuration
-        private const string UsvIp = "192.168.0.177";      // Arduino IP when connected
-        private const int UsvSendPort = 8888;               // Arduino RECEIVES control on 8888
-        private const int UsvReceivePort = 8889;            // Arduino SENDS feedback on 8889
+        private const string UsvIp = "192.168.0.177";
+        private const int UsvSendPort = 8888;
+        private const int UsvReceivePort = 8889;
 
-        //Esp32 Configuration
-        private const string EspIp = "192.168.0.178";      // Esp IP when connected
-        private const int EspPort = 8890;               // Esp RECEIVES control on 8890
+        // ESP32 Configuration
+        private const string EspIp = "192.168.0.178";
+        private const int EspPort = 8890;
+        private const int EspReceivePort = 8891;  // NEW: ESP feedback port
 
         // ✅ Feedback values received from USV (shared between threads)
         private volatile byte _positionRelayFeedback = 0;
         private volatile byte _speedRelayFeedback = 0;
 
-
-        // ✅ Camera Configuration
-        // Camera IP: 192.168.0.50
-        // - Video Stream (RTSP): Port 554 (receiving video FROM camera)
-        // - ONVIF Control: Port 2020 (for camera config/PTZ via ONVIF)
-        // 
-        // NOTE: Since you're not connected to Arduino right now, camera control
-        // won't work until Arduino is connected. Camera VIDEO should still work though!
-        //
-        // Camera control goes to Arduino (when connected), NOT directly to camera
+        // ✅ NEW: Separate listener for ESP feedback
+        private UdpClient? _espListener;
 
         // Track last camera velocity to detect changes
         private double _lastPanVelocity = 0;
         private double _lastTiltVelocity = 0;
+
+        // ✅ NEW: Track last acknowledged sequences
+        private byte _lastArduinoAck = 0;
+        private byte _lastEspAck = 0;
 
         private async void ConnectButton_Click(object? sender, RoutedEventArgs? e)
         {
@@ -95,11 +92,10 @@ namespace USV_Controller_V1._1
 
                 Dispatcher.Invoke(() =>
                 {
-                    IntializedRpm(0);   // ALWAYS ZERO
+                    IntializedRpm(0);
                 });
 
-
-                // ✅ START THE TIMER - after initialization
+                // ✅ START THE TIMER
                 _timer.Interval = 100;
                 _timer.Start();
                 _pingTimer.Start();
@@ -109,10 +105,12 @@ namespace USV_Controller_V1._1
                 if (arduinoOnline)
                 {
                     StartListening(UsvReceivePort);
+                    StartEspListening(EspReceivePort);
                 }
 
                 Log($"✅ Connected!");
                 Log($"📡 USV/Arduino: {UsvIp}:{UsvSendPort} {(arduinoOnline ? "(Online)" : "(Offline - Video Only)")}");
+                Log($"📡 ESP32: {EspIp}:{EspPort}");
                 Log($"📹 Camera video: {CameraIp}:554 (RTSP)");
                 Log($"🎮 Camera PTZ: ONVIF ContinuousMove (Port {CameraOnvifPort})");
                 Log($"🕹️ X/Y axes control camera pan/tilt when Button 1 pressed");
@@ -135,37 +133,41 @@ namespace USV_Controller_V1._1
             _timer.Stop();
             _pingTimer.Stop();
 
-            // Stop camera PTZ movement
             try { _ptzController?.Stop().Wait(500); } catch { }
 
             try { usvClient?.Close(); } catch { }
+            try { espClient?.Close(); } catch { }
             try { _listener?.Close(); } catch { }
+            try { _espListener?.Close(); } catch { }
 
             _connected = false;
             _isReachable = false;
 
             _firstPacketSent = false;
             _throttleZeroed = false;
+
+            // ✅ NEW: Reset ESP feedback time and LEDs
+            _lastEspFeedbackTime = DateTime.MinValue;
+            ResetEspLeds();
+
             Log("⏹ Streaming stopped.");
-            Log("🔌 Disconnected from USV.");
+            Log("🔌 Disconnected from USV and ESP32.");
             Log("📹 Camera PTZ stopped.");
+            Log("💡 ESP status LEDs reset.");
         }
 
         private void Timer_Elapsed(object? sender, ElapsedEventArgs e)
         {
-            // ✅ Check if connected and joystick exists
             if (!_connected || _joystick == null || _joystickState == null)
             {
                 return;
             }
 
-            // ✅ Update joystick state
             UpdateJoystickState();
 
-            // ✅ Check again after update (joystick might have disconnected)
             if (_joystick == null || _joystickState == null)
             {
-                return; // Joystick disconnected, skip this cycle
+                return;
             }
 
             // ✅ Send USV packet
@@ -198,6 +200,7 @@ namespace USV_Controller_V1._1
                 }
             }
 
+            // ✅ Send ESP packet
             byte[] espPacket = BuildPacket2();
 
             try
@@ -207,27 +210,21 @@ namespace USV_Controller_V1._1
                     espClient.Send(espPacket, espPacket.Length, espEndpoint);
                 }
 
-                //Dispatcher.Invoke(() =>
-                //{
-                //    string packetPreview = "ESP: " + BitConverter.ToString(espPacket).Replace("-", " ");
-
-                //    if (this.FindName("PacketPreview") is TextBlock tbEsp)
-                //    {
-                //        tbEsp.Text = packetPreview;
-                //    }
-
-                //    UpdatePacket(packetPreview);
-                //});
+                Dispatcher.Invoke(() =>
+                {
+                    string espPreview = "ESP: " + BitConverter.ToString(espPacket).Replace("-", " ");
+                    // Uncomment if you want to see ESP packets
+                    // UpdatePacket(espPreview);
+                });
             }
             catch (Exception ex)
             {
                 if (DateTime.Now.Second % 10 == 0)
                 {
-                    Log($"⚠️ Esp send error: {ex.Message}");
+                    Log($"⚠️ ESP send error: {ex.Message}");
                 }
             }
 
-            // ✅ Camera PTZ control via ONVIF
             // ✅ Camera PTZ control via ONVIF using POV Hat
             try
             {
@@ -235,59 +232,43 @@ namespace USV_Controller_V1._1
                 double tiltVelocity = 0;
                 double zoomVelocity = 0;
 
-                // ✅ Read POV Hat position
                 int povPosition = _joystickState.PointOfViewControllers[0];
 
-                // POV values: -1 = centered, 0 = up, 9000 = right, 18000 = down, 27000 = left
-                // Angles are in hundredths of degrees (0-35999)
-
-                if (povPosition != -1) // Hat is being pressed
+                if (povPosition != -1)
                 {
-                    // ✅ Set camera speed (adjust this value for faster/slower movement)
-                    double cameraSpeed = 0.5; // 50% speed, range: 0.0 to 1.0
+                    double cameraSpeed = 0.5;
 
-                    // Determine direction based on POV angle
                     if (povPosition >= 0 && povPosition <= 4500)
                     {
-                        // Up (0° to 45°)
                         tiltVelocity = cameraSpeed;
                     }
                     else if (povPosition > 4500 && povPosition <= 13500)
                     {
-                        // Right (45° to 135°)
                         panVelocity = cameraSpeed;
 
-                        // Diagonal: Up-Right
                         if (povPosition < 9000)
                             tiltVelocity = cameraSpeed * 0.7;
-                        // Diagonal: Down-Right
                         else if (povPosition > 9000)
                             tiltVelocity = -cameraSpeed * 0.7;
                     }
                     else if (povPosition > 13500 && povPosition <= 22500)
                     {
-                        // Down (135° to 225°)
                         tiltVelocity = -cameraSpeed;
                     }
                     else if (povPosition > 22500 && povPosition <= 31500)
                     {
-                        // Left (225° to 315°)
                         panVelocity = -cameraSpeed;
 
-                        // Diagonal: Down-Left
                         if (povPosition < 27000)
                             tiltVelocity = -cameraSpeed * 0.7;
-                        // Diagonal: Up-Left
                         else if (povPosition > 27000)
                             tiltVelocity = cameraSpeed * 0.7;
                     }
                     else
                     {
-                        // Up (315° to 360°)
                         tiltVelocity = cameraSpeed;
                     }
 
-                    // ✅ Optional: Add zoom control from slider while using hat
                     if (_joystickState.Sliders != null && _joystickState.Sliders.Length > 0)
                     {
                         int sliderValue = _joystickState.Sliders[0];
@@ -301,12 +282,10 @@ namespace USV_Controller_V1._1
                     }
                 }
 
-                // ✅ Check if any camera control is active
                 bool hasMovement = Math.Abs(panVelocity) > 0.01 ||
                                   Math.Abs(tiltVelocity) > 0.01 ||
                                   Math.Abs(zoomVelocity) > 0.01;
 
-                // ✅ Send command if movement detected or if we need to stop
                 if (_ptzController != null)
                 {
                     if (hasMovement)
@@ -345,7 +324,6 @@ namespace USV_Controller_V1._1
                     }
                 }
 
-                // Update UI
                 Dispatcher.Invoke(() =>
                 {
                     if (this.FindName("PacketPreviewCamera") is TextBlock tbCam)
@@ -387,67 +365,125 @@ namespace USV_Controller_V1._1
             }
         }
 
+        // ✅ UPDATED: Arduino feedback listener with new packet structure
         private async void StartListening(int port = UsvReceivePort)
         {
             try
             {
                 _listener = new UdpClient(port);
-                Log($"👂 Listening for USV feedback on port {port}...");
+                Log($"👂 Listening for Arduino feedback on port {port}...");
 
                 while (_connected)
                 {
                     var result = await _listener.ReceiveAsync();
                     byte[] data = result.Buffer;
 
-                    if (data.Length == 9)
+                    // ✅ Parse Arduino feedback with new structure
+                    if (ParseArduinoFeedback(data, out ArduinoFeedback feedback))
                     {
-                        int feedback1 = (data[0] << 8) | data[1];
-                        int feedback2 = (data[2] << 8) | data[3];
-                        int feedback3 = (data[4] << 8) | data[5];
-                        bool relay1 = data[6] == 1;
-                        _positionRelayFeedback = data[7];
-                        _speedRelayFeedback = data[8];
+                        // Track acknowledgment
+                        _lastArduinoAck = feedback.Sequence;
 
+                        // ✅ CRITICAL: Update feedback values immediately!
+                        // These values (PositionRelay & SpeedRelay) are automatically forwarded to ESP
+                        // in BuildPacket2() which runs every 100ms in Timer_Elapsed
+                        _positionRelayFeedback = feedback.PositionRelay;  // Forwarded to ESP packet[5]
+                        _speedRelayFeedback = feedback.SpeedRelay;        // Forwarded to ESP packet[6]
 
                         Dispatcher.Invoke(() =>
                         {
                             // Update clutch slider
-                            ClutchSlider.Value = ClutchSlider.Maximum + ClutchSlider.Minimum - feedback1;
+                            ClutchSlider.Value = ClutchSlider.Maximum + ClutchSlider.Minimum - feedback.Feedback1;
 
-                            // ✅ CHANGED: Use Z-axis (throttle) instead of LeftThumbY
-                            // Get throttle position (reversed: 0=max, 65535=min)
-                            //if (_joystickState != null)
-                            //{
-                            int throttleRaw = Math.Abs(_joystickState.Z- 65535);
+                            if (_joystickState != null)
+                            {
+                                int throttleRaw = Math.Abs(_joystickState.Z - 65535);
+                                double leftRpm = Map(throttleRaw, 0, 65535, 0, 100);
+                                double rightRpm = Map(feedback.Feedback2, 5, 400, 0, 100);
 
-                            //    double increment = (65535 - throttleRaw) / 20000.0;
-                            //    X += increment;
-                            //    X = Math.Clamp(X, 0, 450);
-                            //}
-
-                            double leftRpm = Map(throttleRaw, 0, 65535, 0, 100);
-                            double rightRpm = Map(feedback2, 5, 400, 0, 100);
-
-                            IntializedRpm(leftRpm);
-                            FeedbackRpm(rightRpm);
+                                IntializedRpm(leftRpm);
+                                FeedbackRpm(rightRpm);
+                            }
 
                             // Update steering indicator
-                            double steeringAngle = (MapSteeringValue(feedback3) + 2);
+                            double steeringAngle = (MapSteeringValue(feedback.Feedback3) + 2);
                             double mappedLeft = (steeringAngle + 30) / 60 * (380 - 20) + 20 - (RudderIndicator.Width / 2);
                             Canvas.SetLeft(RudderIndicator, mappedLeft);
                             SteeringValueText.Text = $"{steeringAngle:F1}°";
 
                             // Update relay indicator
-                            RelayIndicator.Fill = relay1 ? Brushes.Lime : Brushes.Red;
-                            RelayText.Text = relay1 ? "ON" : "OFF";
-                            RelayText.Foreground = relay1 ? Brushes.Lime : Brushes.Red;
+                            RelayIndicator.Fill = feedback.Relay1 ? Brushes.Lime : Brushes.Red;
+                            RelayText.Text = feedback.Relay1 ? "ON" : "OFF";
+                            RelayText.Foreground = feedback.Relay1 ? Brushes.Lime : Brushes.Red;
                         });
+
+                        // Log acknowledgment
+                        //if (DateTime.Now.Millisecond % 500 < 100)
+                        //{
+                        //    Log($"✅ Arduino ACK: Seq={feedback.Sequence}");
+                        //}
+                    }
+                    else
+                    {
+                        Log("⚠️ Invalid Arduino feedback packet received");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Log($"⚠️ Listener stopped: {ex.Message}");
+                Log($"⚠️ Arduino listener stopped: {ex.Message}");
+            }
+        }
+
+        // ✅ NEW: ESP32 feedback listener
+        private async void StartEspListening(int port = EspReceivePort)
+        {
+            try
+            {
+                _espListener = new UdpClient(port);
+                Log($"👂 Listening for ESP32 feedback on port {port}...");
+
+                while (_connected)
+                {
+                    var result = await _espListener.ReceiveAsync();
+                    byte[] data = result.Buffer;
+
+                    // ✅ Parse ESP feedback with new structure
+                    if (ParseEspFeedback(data, out EspFeedback feedback))
+                    {
+                        // Track acknowledgment
+                        _lastEspAck = feedback.Sequence;
+
+                        // ✅ Update last feedback time for timeout tracking
+                        _lastEspFeedbackTime = DateTime.Now;
+
+                        // ✅ Update the ESP LED indicators on the UI
+                        UpdateEspLeds(feedback.Relay1, feedback.Relay2, feedback.Relay3, feedback.Relay4, feedback.Relay5);
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            // Update a text block with ESP status (if it exists)
+                            if (this.FindName("EspStatusText") is TextBlock tbEsp)
+                            {
+                                tbEsp.Text = $"ESP: R1={feedback.Relay1} R2={feedback.Relay2} R3={feedback.Relay3} R4={feedback.Relay4} R5={feedback.Relay5}";
+                            }
+                        });
+
+                        // Log acknowledgment periodically
+                        //if (DateTime.Now.Millisecond % 500 < 100)
+                        //{
+                        //    Log($"✅ ESP32 ACK: Seq={feedback.Sequence}, Relays=[{feedback.Relay1},{feedback.Relay2},{feedback.Relay3},{feedback.Relay4},{feedback.Relay5}]");
+                        //}
+                    }
+                    else
+                    {
+                        Log("⚠️ Invalid ESP32 feedback packet received");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠️ ESP32 listener stopped: {ex.Message}");
             }
         }
     }

@@ -12,14 +12,15 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Header -->
-        <TextBlock Text="USV Controller"
+        <TextBlock Text="D1 Controller"
                    HorizontalAlignment="Center"
                    FontSize="26" FontWeight="Bold"
                    Foreground="#333"
-                   Margin="10"/>
+                   Margin="0"/>
 
         <!-- Main Layout -->
         <Grid Grid.Row="1" Margin="0,20,0,20">
@@ -92,22 +93,13 @@
                     </StackPanel>
                 </GroupBox>
 
-                 <!--UDP Connection--> 
-                <!--<GroupBox Header="Connection" FontWeight="Bold" Margin="0,0,0,10">
-                    <StackPanel Orientation="Vertical" Margin="10">
-                        
-                        --><!--<Button x:Name="ConnectButton" Content="Connect" Width="60" Click="ConnectButton_Click"/>
-                        <Button x:Name="DisconnectButton" Content="Disconnect" Width="70" Margin="0,10,0,0" Click="DisconnectButton_Click"/>--><!--
-                    </StackPanel>
-                </GroupBox>-->
-
             </StackPanel>
 
             <!-- =================== COLUMN 1 (unchanged) =================== -->
             <StackPanel Grid.Column="1" Margin="20,0" VerticalAlignment="Top">
 
                 <!-- Speed Feedback -->
-                <GroupBox Header="Speed (RPM)" FontWeight="Bold" Margin="0,10,0,0" Height="256">
+                <GroupBox Header="Speed (RPM)" FontWeight="Bold" Margin="0,0,0,0" Height="256">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -186,7 +178,7 @@
                 </GroupBox>
 
                 <!-- Rudder Feedback -->
-                <GroupBox Header="Rudder (°)" FontWeight="Bold" Margin="0,10,0,0">
+                <GroupBox Header="Rudder (°)" FontWeight="Bold" Margin="0,5,0,0">
                     <Grid>
                         <Canvas x:Name="RudderCanvas"
                                 Height="100"
@@ -235,20 +227,136 @@
                     </Grid>
                 </GroupBox>
 
-                <GroupBox>
-                    <TextBlock Text="Press Button (7) to Connect / Disconnect"
-                               HorizontalAlignment="Center"
-                               FontSize="16" FontWeight="Bold"
-                               Foreground="#333"
-                               Margin="10"/> 
-                </GroupBox>
-
             </StackPanel>
 
         </Grid>
 
+        <!-- =================== NEW: ESP Explosive Circuit Status Panel =================== -->
+        <GroupBox Grid.Row="2" Header="Explosive Circuit Status" FontWeight="Bold" Margin="0,10,0,10">
+            <Grid Margin="10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="*"/>
+                    <!--<ColumnDefinition Width="*"/>-->
+                </Grid.ColumnDefinitions>
+
+                <!-- Relay 1: Door/Gate -->
+                <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                    <Ellipse x:Name="EspRelay1Led"
+                             Width="25" Height="25"
+                             Fill="Gray"
+                             Stroke="#333"
+                             StrokeThickness="2"
+                             Margin="0,0,0,5"/>
+                    <TextBlock Text="Door/Gate"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               Margin="0,0,0,3"/>
+                    <!--<TextBlock Text="(RFID)"
+                               FontSize="9"
+                               FontStyle="Italic"
+                               Foreground="#666"
+                               HorizontalAlignment="Center"/>-->
+                </StackPanel>
+
+                <!-- Relay 2: Position -->
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                    <Ellipse x:Name="EspRelay2Led"
+                             Width="25" Height="25"
+                             Fill="Gray"
+                             Stroke="#333"
+                             StrokeThickness="2"
+                             Margin="0,0,0,5"/>
+                    <TextBlock Text="Position"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               Margin="0,0,0,3"/>
+                    <!--<TextBlock Text="(Manual)"
+                               FontSize="9"
+                               FontStyle="Italic"
+                               Foreground="#666"
+                               HorizontalAlignment="Center"/>-->
+                </StackPanel>
+
+                <!-- Relay 3: Speed -->
+                <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                    <Ellipse x:Name="EspRelay3Led"
+                             Width="25" Height="25"
+                             Fill="Gray"
+                             Stroke="#333"
+                             StrokeThickness="2"
+                             Margin="0,0,0,5"/>
+                    <TextBlock Text="Speed"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               Margin="0,0,0,3"/>
+                    <!--<TextBlock Text="(Manual)"
+                               FontSize="9"
+                               FontStyle="Italic"
+                               Foreground="#666"
+                               HorizontalAlignment="Center"/>-->
+                </StackPanel>
+
+                <!-- Relay 4: Fire -->
+                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                    <Ellipse x:Name="EspRelay4Led"
+                             Width="25" Height="25"
+                             Fill="Gray"
+                             Stroke="#333"
+                             StrokeThickness="2"
+                             Margin="0,0,0,5"/>
+                    <TextBlock Text="Fire"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               Margin="0,0,0,3"/>
+                    <!--<TextBlock Text="(Pulse)"
+                               FontSize="9"
+                               FontStyle="Italic"
+                               Foreground="#666"
+                               HorizontalAlignment="Center"/>-->
+                </StackPanel>
+
+                <!-- Relay 5: Watchdog -->
+                <!--<StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                    <Ellipse x:Name="EspRelay5Led"
+                             Width="30" Height="30"
+                             Fill="Gray"
+                             Stroke="#333"
+                             StrokeThickness="2"
+                             Margin="0,0,0,5"/>
+                    <TextBlock Text="Watchdog"
+                               FontSize="11"
+                               FontWeight="SemiBold"
+                               HorizontalAlignment="Center"
+                               TextWrapping="Wrap"
+                               TextAlignment="Center"
+                               Margin="0,0,0,3"/>-->
+                    <!--<TextBlock Text="(Manual)"
+                               FontSize="9"
+                               FontStyle="Italic"
+                               Foreground="#666"
+                               HorizontalAlignment="Center"/>-->
+                <!--</StackPanel>-->
+
+            </Grid>
+        </GroupBox>
+
         <!-- Footer -->
-        <TextBlock Grid.Row="2"
+        <TextBlock Grid.Row="3"
                    Text="© 2025 مركز البحوث الفنية و المعايرة القوات البحرية"
                    HorizontalAlignment="Center"
                    Foreground="#666"
