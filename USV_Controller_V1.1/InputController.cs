@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -26,6 +27,7 @@ namespace USV_Controller_V1._1
         // ✅ Feedback values received from USV (shared between threads)
         private volatile byte _positionRelayFeedback = 0;
         private volatile byte _speedRelayFeedback = 0;
+        private volatile byte _groundStationCard = 0;
 
         // ✅ NEW: Separate listener for ESP feedback
         private UdpClient? _espListener;
@@ -387,8 +389,9 @@ namespace USV_Controller_V1._1
                         // ✅ CRITICAL: Update feedback values immediately!
                         // These values (PositionRelay & SpeedRelay) are automatically forwarded to ESP
                         // in BuildPacket2() which runs every 100ms in Timer_Elapsed
-                        _positionRelayFeedback = feedback.PositionRelay;  // Forwarded to ESP packet[5]
+                        _positionRelayFeedback = feedback.Position;  // Forwarded to ESP packet[5]
                         _speedRelayFeedback = feedback.SpeedRelay;        // Forwarded to ESP packet[6]
+                        CalculateGPSDistance(feedback.Position);
 
                         Dispatcher.Invoke(() =>
                         {

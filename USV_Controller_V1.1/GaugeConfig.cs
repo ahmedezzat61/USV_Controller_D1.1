@@ -15,16 +15,31 @@ namespace USV_Controller_V1._1
         private void SetupRpmChart(PieChart chart)
         {
             chart.RenderTransform = new RotateTransform(+180);
+            UpdateGaugeTheme(ThemeManager.IsDarkTheme);
+            chart.IsHitTestVisible = false;
+        }
 
-            var zones = new (double min, double max, SKColor color)[]
-            {
-                (0,    999,  SKColor.Parse("#FFFF00")),
-                (1000, 1499, SKColor.Parse("#FFA500")),
-                (1500, 2499, SKColor.Parse("#FFFF00")),
-                (2500, 2999, SKColor.Parse("#9ACD32")),
-                (3000, 3499, SKColor.Parse("#008000")),
-                (3500, 4000, SKColor.Parse("#32CD32")),
-            };
+        private void UpdateGaugeTheme(bool isDark)
+        {
+            var zones = isDark 
+                ? new (double min, double max, SKColor color)[] // Night Mode (Original)
+                {
+                    (0,    999,  SKColor.Parse("#1A5A7A")),   // Dark teal
+                    (1000, 1499, SKColor.Parse("#2A6A4A")),   // Dark green
+                    (1500, 2499, SKColor.Parse("#3A7A5A")),   // Medium green
+                    (2500, 2999, SKColor.Parse("#4A8A6A")),   // Light green
+                    (3000, 3499, SKColor.Parse("#00B4CC")),   // Teal accent
+                    (3500, 4000, SKColor.Parse("#00D4FF")),   // Cyan accent
+                }
+                : new (double min, double max, SKColor color)[] // Day Mode (User Requested)
+                {
+                    (0,    999,  SKColor.Parse("#FFFF00")),   // Yellow
+                    (1000, 1499, SKColor.Parse("#FFA500")),   // Orange
+                    (1500, 2499, SKColor.Parse("#FFFF00")),   // Yellow
+                    (2500, 2999, SKColor.Parse("#9ACD32")),   // YellowGreen
+                    (3000, 3499, SKColor.Parse("#008000")),   // Green
+                    (3500, 4000, SKColor.Parse("#32CD32")),   // LimeGreen
+                };
 
             var degrees = new List<double>();
             double totalDeg = 0.0;
@@ -48,10 +63,12 @@ namespace USV_Controller_V1._1
                 {
                     Values = new double[] { degrees[i] },
                     Fill = new SolidColorPaint(zones[i].color),
-                    InnerRadius = 70
+                    InnerRadius = 70,
+                    HoverPushout = 0
                 });
             }
 
+            // Transparent filler for the bottom half
             series.Add(new PieSeries<double>
             {
                 Values = new double[] { 180.0 },
@@ -59,8 +76,9 @@ namespace USV_Controller_V1._1
                 InnerRadius = 70
             });
 
-            chart.Series = series.ToArray();
-            chart.IsHitTestVisible = false;
+            // Update both charts
+            if (RpmPieLeft != null) RpmPieLeft.Series = series.ToArray();
+            if (RpmPieRight != null) RpmPieRight.Series = series.ToArray();
         }
 
         private void IntializedRpm(double rpm)

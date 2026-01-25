@@ -8,19 +8,23 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Ports;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Policy;
 using System.Timers;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Media;
-using System.Windows.Threading;
 using System.Windows.Forms;
+using System.Windows.Media;
 using System.Windows.Shapes;
+using System.Windows.Threading;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace USV_Controller_V1._1
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : System.Windows.Window
     {
         // --- NEW: monitor window instance ---
         private MonitorWindow _monitor;
@@ -46,8 +50,11 @@ namespace USV_Controller_V1._1
         // ✅ Pre-connection timer to poll joystick buttons
         private readonly System.Timers.Timer _joystickPollTimer;
         private bool _button6WasPressed = false;
+        private bool _button4WasPressed = false;  // Theme toggle button
         private readonly DispatcherTimer _linkTimer;
         private bool _linkOn = false;
+        private bool _isScanning = false;           // ✅ NEW: Prevent overlapping scans
+        private string _espBuffer = "";
 
         private readonly System.Timers.Timer _pingTimer;
         private bool _isReachable = false;
@@ -56,6 +63,12 @@ namespace USV_Controller_V1._1
         private DateTime _lastEspFeedbackTime = DateTime.MinValue;
         private readonly System.Timers.Timer _espStatusTimer;
         private const int ESP_FEEDBACK_TIMEOUT_MS = 2000; // 2 seconds
+
+        // ✅ NEW: ESP32 Groundstation Door Scanning
+        private SerialPort? _espPort;
+        private readonly System.Timers.Timer _espScanTimer;
+        private bool _isEspConnected = false;
+
 
         private const string CameraIp = "192.168.0.50";
         private const int CameraRtspPort = 554;
@@ -212,6 +225,7 @@ namespace USV_Controller_V1._1
             _firstPacketSent = false;
             _throttleZeroed = false;
             _button6WasPressed = false;
+            _button4WasPressed = false;
         }
 
         // ✅ NEW: Update ESP LED indicators
@@ -251,17 +265,22 @@ namespace USV_Controller_V1._1
 
             _monitor = new MonitorWindow();
             _monitor.Show();
+            InitializeJoystick();
 
             SetupRpmChart(RpmPieLeft);
             SetupRpmChart(RpmPieRight);
+
+            // Subscribe to theme changes
+            ThemeManager.ThemeChanged += () =>
+            {
+                UpdateGaugeTheme(ThemeManager.IsDarkTheme);
+            };
 
             IntializedRpm(0);
             FeedbackRpm(0);
 
             _timer = new System.Timers.Timer(100);
             _timer.Elapsed += Timer_Elapsed;
-
-            InitializeJoystick();
 
             _joystickPollTimer = new System.Timers.Timer(100);
             _joystickPollTimer.Elapsed += JoystickPollTimer_Elapsed;
@@ -271,6 +290,12 @@ namespace USV_Controller_V1._1
             _espStatusTimer = new System.Timers.Timer(500); // Check every 500ms
             _espStatusTimer.Elapsed += EspStatusTimer_Elapsed;
             _espStatusTimer.Start();
+
+            // ✅ NEW: ESP32 Continuous Scan Timer
+            _espScanTimer = new System.Timers.Timer(2000); // Scan every 2 seconds
+            _espScanTimer.Elapsed += EspScanTimer_Elapsed;
+            _espScanTimer.Start();
+
 
             _linkTimer = new DispatcherTimer();
             _linkTimer.Interval = TimeSpan.FromMilliseconds(400);
@@ -306,16 +331,16 @@ namespace USV_Controller_V1._1
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
 
-            //try
-            //{
-            //    string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "OpenCPN", "opencpn.exe");
-            //    Process.Start(exePath);
-            //    Log("🗺️ OpenCPN launched successfully");
-            //}
-            //catch (Exception ex)
-            //{
-            //    Log($"⚠️ Could not start OpenCPN: {ex.Message}");
-            //}
+            try
+            {
+                string exePath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "OpenCPN", "opencpn.exe");
+                Process.Start(exePath);
+                Log("🗺️ OpenCPN launched successfully");
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠️ Could not start OpenCPN: {ex.Message}");
+            }
         }
 
         // ✅ NEW: ESP status timeout check
@@ -348,7 +373,9 @@ namespace USV_Controller_V1._1
                     _joystick.GetCurrentState(ref _joystickState);
 
                     bool button6Pressed = _joystickState.Buttons[6];
+                    bool button4Pressed = _joystickState.Buttons[4];  // Theme toggle
 
+                    // Button 6 - Connect/Disconnect
                     if (button6Pressed && !_button6WasPressed)
                     {
                         _button6WasPressed = true;
@@ -370,6 +397,30 @@ namespace USV_Controller_V1._1
                     else if (!button6Pressed)
                     {
                         _button6WasPressed = false;
+                    }
+
+                    // Button 4 - Toggle Day/Night Theme
+                    if (button4Pressed && !_button4WasPressed)
+                    {
+                        _button4WasPressed = true;
+
+                        Dispatcher.Invoke(() =>
+                        {
+                            try 
+                            {
+                                ThemeManager.ToggleTheme();
+                                string mode = ThemeManager.IsDarkTheme ? "Night Mode 🌙" : "Day Mode ☀️";
+                                Log($"🎮 Button 5 pressed - Switched to {mode}");
+                            }
+                            catch (Exception ex)
+                            {
+                                Log($"❌ Theme Error: {ex.Message}");
+                            }
+                        });
+                    }
+                    else if (!button4Pressed)
+                    {
+                        _button4WasPressed = false;
                     }
                 }
                 catch (SharpDX.SharpDXException)
@@ -445,10 +496,10 @@ namespace USV_Controller_V1._1
 
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            this.Left = 630;
+            this.Left = 0;
             this.Top = 0;
             this.Width = 660;
-            this.Height = 680;
+            this.Height = 730;
 
             Log("✅ USV Controller initialized and ready.");
             Log("🎮 Press Button 7 to Connect/Disconnect");
@@ -475,6 +526,13 @@ namespace USV_Controller_V1._1
             _linkTimer?.Stop();
             _joystickPollTimer?.Stop();
             _espStatusTimer?.Stop();
+            _espScanTimer?.Stop();
+
+            if (_espPort != null && _espPort.IsOpen)
+            {
+                try { _espPort.Close(); } catch { }
+            }
+
 
             try { usvClient?.Close(); } catch { }
             try { camClient?.Close(); } catch { }
@@ -501,5 +559,233 @@ namespace USV_Controller_V1._1
         {
             _monitor?.UpdatePacket(text);
         }
+
+        // =========================================================
+        // ✅ NEW: Continuous SCANNING & DATA HANDLING for ESP32
+        // =========================================================
+
+        private void EspScanTimer_Elapsed(object? sender, ElapsedEventArgs e)
+        {
+            // ✅ FIX 1: Prevent overlapping scans
+            if (_isScanning)
+            {
+                return; // Skip this scan cycle if already scanning
+            }
+
+            // If already connected, verify health
+            if (_isEspConnected)
+            {
+                if (_espPort == null || !_espPort.IsOpen)
+                {
+                    _isEspConnected = false;
+                    Dispatcher.Invoke(() =>
+                    {
+                        GroundStationDoorLed.Fill = Brushes.Gray;
+                        Log("⚠️ ESP32 Serial disconnected unexpectedly.");
+                    });
+                }
+                return;
+            }
+
+            // ✅ Set scanning flag
+            _isScanning = true;
+
+            try
+            {
+                string[] ports = SerialPort.GetPortNames();
+                bool foundEsp = false;
+
+                Log($"🔍 Scanning all COM port(s)...");
+
+                foreach (string portName in ports)
+                {
+                    // Skip virtual COM ports
+                    if (portName.StartsWith("CNC") || portName.StartsWith("COM0"))
+                    {
+                        continue;
+                    }
+
+                    //Log($"📡 Checking {portName}...");
+
+                    if (TryConnectToEsp(portName))
+                    {
+                        _isEspConnected = true;
+                        foundEsp = true;
+                        Dispatcher.Invoke(() =>
+                        {
+                            GroundStationDoorLed.Fill = Brushes.Yellow;
+                            Log($"✅ ESP32 Connected on {portName} - Monitoring for card events...");
+                        });
+                        break;
+                    }
+                }
+
+                if (!foundEsp)
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        GroundStationDoorLed.Fill = Brushes.Gray;
+                        Log("⚠️ ESP32 NOT CONNECTED - RFID system not found on any COM port");
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ ESP Scan Error: {ex.Message}");
+                Dispatcher.Invoke(() => GroundStationDoorLed.Fill = Brushes.Gray);
+            }
+            finally
+            {
+                // ✅ Always release the lock
+                _isScanning = false;
+            }
+        }
+
+        private bool TryConnectToEsp(string portName)
+        {
+            SerialPort? testPort = null;
+            try
+            {
+                testPort = new SerialPort(portName, 115200)
+                {
+                    DtrEnable = true,
+                    RtsEnable = true,
+                    ReadTimeout = 400,  // Shorter timeout
+                    WriteTimeout = 400
+                };
+
+                testPort.Open();
+
+                // Wait for existing transmission
+                System.Threading.Thread.Sleep(200);
+
+                // Read any available data
+                string response = "";
+                int attempts = 0;
+
+                while (attempts < 5) // Reduced from 8 to 5 for faster scanning
+                {
+                    if (testPort.BytesToRead > 0)
+                    {
+                        response += testPort.ReadExisting();
+                    }
+                    System.Threading.Thread.Sleep(80);
+                    attempts++;
+
+                    if (response.Length > 10) break;
+                }
+
+                // Log preview
+                if (!string.IsNullOrWhiteSpace(response))
+                {
+                    string preview = response.Length > 50 ? response.Substring(0, 50) + "..." : response;
+                    Log($"   ↳ {portName}: '{preview.Replace("\r", "").Replace("\n", " ")}'");
+                }
+
+                // Check for ESP32 RFID system signatures
+                bool isEspRfid = response.Contains("RFID") ||
+                                 response.Contains("Buzzer") ||
+                                 response.Contains("Ready") ||
+                                 response.Contains("CARD_IN") ||
+                                 response.Contains("CARD_OUT") ||
+                                 response.Contains("Allowed UID") ||
+                                 response.Contains("ets Jul") ||  // Boot message
+                                 response.Contains("rst:0x");     // Reset info
+
+                if (isEspRfid)
+                {
+                    Log($"✅ {portName} - ESP32 RFID System identified!");
+
+                    // Keep connection and attach handler
+                    _espPort = testPort;
+                    _espPort.DataReceived += EspPort_DataReceived;
+                    return true;
+                }
+
+                // Not our device
+                testPort.Close();
+                testPort.Dispose();
+                return false;
+            }
+            catch (UnauthorizedAccessException)
+            {
+                try { testPort?.Close(); } catch { }
+                try { testPort?.Dispose(); } catch { }
+                return false;
+            }
+            catch (TimeoutException)
+            {
+                try { testPort?.Close(); } catch { }
+                try { testPort?.Dispose(); } catch { }
+                return false;
+            }
+            catch (Exception)
+            {
+                try { testPort?.Close(); } catch { }
+                try { testPort?.Dispose(); } catch { }
+                return false;
+            }
+        }
+
+        private void EspPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            if (_espPort == null || !_espPort.IsOpen) return;
+
+            try
+            {
+                string newData = _espPort.ReadExisting();
+                if (string.IsNullOrWhiteSpace(newData)) return;
+
+                _espBuffer += newData;
+
+                // ✅ Process all CARD_IN occurrences
+                while (_espBuffer.Contains("CARD_IN"))
+                {
+                    int index = _espBuffer.IndexOf("CARD_IN");
+                    _espBuffer = _espBuffer.Substring(index + 7);
+                    _groundStationCard = 1;
+                    Log($"📥 ESP32: CARD_IN");
+                    Dispatcher.Invoke(() =>
+                    {
+                        GroundStationDoorLed.Fill = Brushes.LimeGreen;
+                        Log("🟢 Ground Station Door: CARD DETECTED - Access Granted");
+                    });
+                }
+
+                // ✅ Process all CARD_OUT occurrences  
+                while (_espBuffer.Contains("CARD_OUT"))
+                {
+                    int index = _espBuffer.IndexOf("CARD_OUT");
+                    _espBuffer = _espBuffer.Substring(index + 8);
+                    _groundStationCard = 0;
+                    Log($"📥 ESP32: CARD_OUT");
+                    Dispatcher.Invoke(() =>
+                    {
+                        GroundStationDoorLed.Fill = Brushes.Red;
+                        Log("🔴 Ground Station Door: CARD REMOVED - Access Denied");
+                    });
+                }
+
+                // Clear buffer if too large
+                if (_espBuffer.Length > 500) _espBuffer = "";
+            }
+            catch (Exception ex)
+            {
+                Log($"❌ ESP32 Read Error: {ex.Message}");
+
+                try { _espPort?.Close(); _espPort?.Dispose(); } catch { }
+
+                _espPort = null;
+                _espBuffer = "";
+                _isEspConnected = false;
+
+                Dispatcher.Invoke(() =>
+                {
+                    GroundStationDoorLed.Fill = Brushes.Gray;
+                    Log("⚠️ ESP32 Disconnected due to error");
+                });
+            }
+        }
+
     }
 }

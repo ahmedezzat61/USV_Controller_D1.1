@@ -1,16 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Net;
-using System.Net.Sockets;
-using LiveChartsCore;
+﻿using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.WPF;
 using SharpDX.DirectInput;
 using SkiaSharp;
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using Vlc.DotNet.Core.Interops.Signatures;
 
 namespace USV_Controller_V1._1
 {
@@ -19,6 +20,11 @@ namespace USV_Controller_V1._1
         // ✅ Packet sequence counter
         private byte _usvSequence = 0;
         private byte _espSequence = 0;
+        private int _lastSystemFaultState = 0;
+
+        // ✅ Button Press Timers
+        private DateTime _watchdogPressStartTime = DateTime.MinValue;
+        private DateTime _explodePressStartTime = DateTime.MinValue;
 
         // ✅ Scale DirectInput axis (0-65535) to your required range (0-1023)
         private int ScaleAxis(int value)
@@ -74,6 +80,82 @@ namespace USV_Controller_V1._1
             return checksum;
         }
 
+        private float CalculateGPSDistance(byte value)
+        {
+            if (value == 255)
+            {
+                Dispatcher.Invoke(() =>
+                    GpsDistanceText.Text = " Positoin Not Acquired"
+                );
+                return 0;
+            }
+
+            float distance = (byte)(value / 10.0f);
+            Dispatcher.Invoke(() =>
+                GpsDistanceText.Text = $"Position: {distance.ToString("F1")} km"
+            );
+
+            return distance;
+        }
+        private byte GPSSafeDistance(byte value)
+        {
+
+            if (value > 10 && value < 255) return 1;
+            else return 0;
+        }
+
+        private float CalculateSpeed(byte value)
+        {
+            
+            float speed = (value / 7.0f);
+            Dispatcher.Invoke(() =>
+                SpeedText.Text = $"Speed: {speed.ToString("F1")} kn"
+            );
+
+            return speed;
+        }
+        private byte SafeSpeed(byte value)
+        {
+            float speed=CalculateSpeed(value);
+            if (speed > 5.0f) return 1;
+            else return 0;
+        }
+
+        private void HandleSystemFault(int faultState)
+        {
+            // Only show error if the state has changed
+            if (faultState == _lastSystemFaultState)
+                return;
+
+            _lastSystemFaultState = faultState;
+
+            if (faultState == 1)
+            {
+                Dispatcher.Invoke(() =>
+                    System.Windows.MessageBox.Show(
+                        "Speed feedback faulty",
+                        "System Fault",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Error
+                    )
+                );
+            }
+            else if (faultState == 2)
+            {
+                Dispatcher.Invoke(() =>
+                    System.Windows.MessageBox.Show(
+                        "Clutch feedback faulty",
+                        "System Fault",
+                        System.Windows.MessageBoxButton.OK,
+                        System.Windows.MessageBoxImage.Error
+                    )
+                );
+            }
+        }
+
+
+       
+
         // ✅ BUILD ARDUINO/USV PACKET (23 bytes total)
         // Structure: [0xAA] [0x55] [SEQ] [14 data bytes] [CHECKSUM]
         private byte[] BuildPacket()
@@ -127,17 +209,22 @@ namespace USV_Controller_V1._1
             int steeringAxis = ScaleCenteredAxis(_joystickState.RotationZ);
             steeringAxis = Math.Clamp(steeringAxis, 0, 1023);
 
+            bool isAquiredPos1Pressed = _joystickState.Buttons[2];
+            bool isAquiredPos2Pressed = _joystickState.Buttons[3];
+            bool shouldAquire = isAquiredPos1Pressed && isAquiredPos2Pressed;
+            byte AquireFinal = shouldAquire ? (byte)1 : (byte)0;
+
             // Button states
             byte start = _joystickState.Buttons[7] ? (byte)1 : (byte)0;
-            byte march = _joystickState.Buttons[8] ? (byte)1 : (byte)0;
-            byte b = _joystickState.Buttons[9] ? (byte)1 : (byte)0;
+            byte march = (_joystickState.Buttons[8] && throttleValue > 61000) ? (byte)1 : (byte)0;
+            byte gps = AquireFinal;
             byte tiltup = _joystickState.Buttons[10] ? (byte)1 : (byte)0;
             byte tiltdown = _joystickState.Buttons[11] ? (byte)1 : (byte)0;
-            byte rb = _joystickState.Buttons[12] ? (byte)1 : (byte)0;
+            byte alarm = _joystickState.Buttons[1] ? (byte)1 : (byte)0;
             byte forward = _joystickState.Buttons[15] ? (byte)1 : (byte)0;
             byte backward = _joystickState.Buttons[13] ? (byte)1 : (byte)0;
             byte nutral = _joystickState.Buttons[14] ? (byte)1 : (byte)0;
-            byte watchdog = 0;
+            byte watchdog = _groundStationCard;
 
             // Build packet: [0xAA] [0x55] [SEQ] [14 data bytes] [CHECKSUM]
             byte[] packet = new byte[18];
@@ -153,11 +240,11 @@ namespace USV_Controller_V1._1
             packet[5] = (byte)(steeringAxis >> 8);   // Steering high byte
             packet[6] = (byte)(steeringAxis & 0xFF); // Steering low byte
             packet[7] = start;
-            packet[8] = b;
+            packet[8] = gps;
             packet[9] = tiltup;
             packet[10] = tiltdown;
             packet[11] = march;
-            packet[12] = rb;
+            packet[12] = alarm;
             packet[13] = backward;
             packet[14] = forward;
             packet[15] = nutral;
@@ -175,6 +262,10 @@ namespace USV_Controller_V1._1
         {
             if (_joystickState == null)
             {
+                // Reset timers if joystick is lost
+                _watchdogPressStartTime = DateTime.MinValue;
+                _explodePressStartTime = DateTime.MinValue;
+
                 byte[] safePacket = new byte[8];
                 safePacket[0] = 0xAA;
                 safePacket[1] = 0x55;
@@ -187,12 +278,47 @@ namespace USV_Controller_V1._1
                 return safePacket;
             }
 
-            byte watchdog = _joystickState.Buttons[12] ? (byte)1 : (byte)0;
+            // ✅ Watchdog Logic (Requires 3-second hold)
+            byte watchdog = 0;
+            if (_joystickState.Buttons[12])
+            {
+                if (_watchdogPressStartTime == DateTime.MinValue)
+                {
+                    _watchdogPressStartTime = DateTime.UtcNow;
+                }
 
+                if ((DateTime.UtcNow - _watchdogPressStartTime).TotalSeconds >= 3)
+                {
+                    watchdog = 1;
+                }
+            }
+            else
+            {
+                _watchdogPressStartTime = DateTime.MinValue;
+            }
+
+            // ✅ Explode Logic (Requires 3-second hold)
             bool isExplode1Pressed = _joystickState.Buttons[0];
             bool isExplode2Pressed = _joystickState.Buttons[5];
             bool shouldExplode = isExplode1Pressed && isExplode2Pressed;
-            byte explodeFinal = shouldExplode ? (byte)1 : (byte)0;
+            byte explodeFinal = 0;
+
+            if (shouldExplode)
+            {
+                if (_explodePressStartTime == DateTime.MinValue)
+                {
+                    _explodePressStartTime = DateTime.UtcNow;
+                }
+
+                if ((DateTime.UtcNow - _explodePressStartTime).TotalSeconds >= 3)
+                {
+                    explodeFinal = 1;
+                }
+            }
+            else
+            {
+                _explodePressStartTime = DateTime.MinValue;
+            }
 
             // Build packet: [0xAA] [0x55] [SEQ] [4 data bytes] [CHECKSUM]
             byte[] packet = new byte[8];
@@ -205,8 +331,8 @@ namespace USV_Controller_V1._1
             // Data payload (4 bytes)
             packet[3] = watchdog;
             packet[4] = explodeFinal;
-            packet[5] = _positionRelayFeedback;
-            packet[6] = _speedRelayFeedback;
+            packet[5] = SafeSpeed(_speedRelayFeedback);
+            packet[6] = GPSSafeDistance(_positionRelayFeedback) ;
 
             // Checksum
             packet[7] = CalculateChecksum(packet, 7);
@@ -222,7 +348,7 @@ namespace USV_Controller_V1._1
             feedback = new ArduinoFeedback();
 
             // Validate packet length
-            if (data == null || data.Length < 13)
+            if (data == null || data.Length < 12)
                 return false;
 
             // Validate start bytes
@@ -241,8 +367,9 @@ namespace USV_Controller_V1._1
             feedback.Feedback2 = (data[5] << 8) | data[6];  // 2 bytes
             feedback.Feedback3 = (data[7] << 8) | data[8];  // 2 bytes
             feedback.Relay1 = data[9] == 1;
-            feedback.PositionRelay = data[10];  // ✅ This gets forwarded to ESP
+            feedback.Position = data[10];  // ✅ This gets forwarded to ESP
             feedback.SpeedRelay = data[11];     // ✅ This gets forwarded to ESP
+
 
             return true;
         }
@@ -279,6 +406,7 @@ namespace USV_Controller_V1._1
         }
     }
 
+
     // ✅ Feedback data structures
     public struct ArduinoFeedback
     {
@@ -287,7 +415,7 @@ namespace USV_Controller_V1._1
         public int Feedback2;
         public int Feedback3;
         public bool Relay1;
-        public byte PositionRelay;
+        public byte Position;
         public byte SpeedRelay;
     }
 

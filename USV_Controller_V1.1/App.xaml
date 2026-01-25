@@ -3,6 +3,190 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              StartupUri="MainWindow.xaml">
     <Application.Resources>
-         
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Theme loaded by ThemeManager at startup -->
+            </ResourceDictionary.MergedDictionaries>
+            
+            <!-- =================== SHARED STYLES (Theme-independent) =================== -->
+            
+            <!-- =================== GROUPBOX STYLE =================== -->
+            
+            <Style x:Key="MaritimeGroupBox" TargetType="GroupBox">
+                <Setter Property="Foreground" Value="{DynamicResource CyanTextBrush}"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="Margin" Value="0,0,0,10"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="GroupBox">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                
+                                <!-- Header -->
+                                <Border Grid.Row="0" 
+                                        Background="{DynamicResource MidNavyBrush}"
+                                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                                        BorderThickness="1,1,1,0"
+                                        CornerRadius="4,4,0,0"
+                                        Padding="10,6">
+                                    <TextBlock Text="{TemplateBinding Header}" 
+                                               Foreground="{DynamicResource CyanTextBrush}"
+                                               FontWeight="Bold"/>
+                                </Border>
+                                
+                                <!-- Content -->
+                                <Border Grid.Row="1" 
+                                        Background="{DynamicResource PanelGradient}"
+                                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                                        BorderThickness="1,0,1,1"
+                                        CornerRadius="0,0,4,4"
+                                        Padding="8">
+                                    <ContentPresenter/>
+                                </Border>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            
+            <!-- =================== BUTTON STYLES =================== -->
+            
+            <Style x:Key="MaritimeButton" TargetType="Button">
+                <Setter Property="Background" Value="{DynamicResource MidNavyBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource LightTextBrush}"/>
+                <Setter Property="BorderBrush" Value="{DynamicResource PanelBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Padding" Value="15,8"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="4"
+                                    Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource LightNavyBrush}"/>
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource CyanAccentBrush}"/>
+                                    <Setter TargetName="border" Property="Effect" Value="{DynamicResource SubtleGlow}"/>
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="border" Property="Background" Value="{DynamicResource DarkNavyBrush}"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+            
+            <!-- =================== SLIDER STYLE =================== -->
+            
+            <Style x:Key="MaritimeSlider" TargetType="Slider">
+                <Setter Property="Background" Value="{DynamicResource DarkNavyBrush}"/>
+                <Setter Property="Foreground" Value="{DynamicResource CyanAccentBrush}"/>
+                <Style.Triggers>
+                    <Trigger Property="Orientation" Value="Vertical">
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Slider">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto" MinWidth="{TemplateBinding MinWidth}"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        
+                                        <!-- Track Background -->
+                                        <Border Grid.Column="1" 
+                                                Width="12"
+                                                Background="{DynamicResource DarkNavyBrush}"
+                                                BorderBrush="{DynamicResource PanelBorderBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="6"
+                                                HorizontalAlignment="Center">
+                                            <Border.Effect>
+                                                <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Opacity="0.3"/>
+                                            </Border.Effect>
+                                        </Border>
+                                        
+                                        <Track Grid.Column="1" x:Name="PART_Track">
+                                            <Track.DecreaseRepeatButton>
+                                                <RepeatButton Command="Slider.DecreaseLarge" Opacity="0"/>
+                                            </Track.DecreaseRepeatButton>
+                                            <Track.IncreaseRepeatButton>
+                                                <RepeatButton Command="Slider.IncreaseLarge" Opacity="0"/>
+                                            </Track.IncreaseRepeatButton>
+                                            <Track.Thumb>
+                                                <Thumb>
+                                                    <Thumb.Style>
+                                                        <Style TargetType="Thumb">
+                                                            <Setter Property="Template">
+                                                                <Setter.Value>
+                                                                    <ControlTemplate TargetType="Thumb">
+                                                                        <Border Width="22" Height="12"
+                                                                                Background="{DynamicResource CyanAccentBrush}"
+                                                                                BorderBrush="{DynamicResource TealAccentBrush}"
+                                                                                BorderThickness="1"
+                                                                                CornerRadius="2">
+                                                                            <Border.Effect>
+                                                                                <DropShadowEffect Color="{DynamicResource SliderGlowColor}" BlurRadius="8" ShadowDepth="0" Opacity="0.6"/>
+                                                                            </Border.Effect>
+                                                                        </Border>
+                                                                    </ControlTemplate>
+                                                                </Setter.Value>
+                                                            </Setter>
+                                                        </Style>
+                                                    </Thumb.Style>
+                                                </Thumb>
+                                            </Track.Thumb>
+                                        </Track>
+                                    </Grid>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Trigger>
+                </Style.Triggers>
+            </Style>
+            
+            <!-- =================== LED INDICATOR STYLE =================== -->
+            
+            <Style x:Key="LEDIndicator" TargetType="Ellipse">
+                <Setter Property="Width" Value="25"/>
+                <Setter Property="Height" Value="25"/>
+                <Setter Property="Stroke" Value="{DynamicResource PanelBorderBrush}"/>
+                <Setter Property="StrokeThickness" Value="2"/>
+            </Style>
+            
+            <!-- =================== TEXT STYLES =================== -->
+            
+            <Style x:Key="LabelText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource LightTextBrush}"/>
+                <Setter Property="FontWeight" Value="SemiBold"/>
+            </Style>
+            
+            <Style x:Key="ValueText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource CyanTextBrush}"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="FontFamily" Value="Consolas"/>
+            </Style>
+            
+            <Style x:Key="HeaderText" TargetType="TextBlock">
+                <Setter Property="Foreground" Value="{DynamicResource LightTextBrush}"/>
+                <Setter Property="FontSize" Value="26"/>
+                <Setter Property="FontWeight" Value="Bold"/>
+                <Setter Property="Effect" Value="{DynamicResource SubtleGlow}"/>
+            </Style>
+            
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

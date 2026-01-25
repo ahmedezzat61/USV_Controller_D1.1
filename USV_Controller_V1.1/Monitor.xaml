@@ -4,7 +4,7 @@
         Title="Monitor"
         Height="450"
         Width="380"
-        Background="#FAFAFA"
+        Background="{DynamicResource DarkBackgroundGradient}"
         WindowStartupLocation="CenterScreen">
 
     <Grid Margin="10">
@@ -17,27 +17,41 @@
         <!-- Packet Preview -->
         <GroupBox Grid.Row="0"
                   Header="Packet Preview"
-                  FontWeight="Bold">
-            <TextBlock x:Name="PacketPreview"
-                       Text="[00 00 00 ...]"
-                       Margin="10"
-                       FontFamily="Consolas"
-                       TextWrapping="Wrap"
-                       Foreground="#444"/>
+                  Style="{DynamicResource MaritimeGroupBox}">
+            <Border Background="{DynamicResource DarkNavyBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="3"
+                    Padding="10">
+                <TextBlock x:Name="PacketPreview"
+                           Text="[00 00 00 ...]"
+                           FontFamily="Consolas"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="{DynamicResource CyanTextBrush}"/>
+            </Border>
         </GroupBox>
 
         <!-- Log -->
         <GroupBox Grid.Row="2"
                   Header="Raw Log"
-                  FontWeight="Bold">
-            <TextBox x:Name="RawLog"
-                     AcceptsReturn="True"
-                     VerticalScrollBarVisibility="Auto"
-                     TextWrapping="Wrap"
-                     Margin="10"
-                     FontFamily="Consolas"
-                     Background="White"
-                     Foreground="Black"/>
+                  Style="{DynamicResource MaritimeGroupBox}">
+            <Border Background="{DynamicResource DarkNavyBrush}"
+                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="3">
+                <TextBox x:Name="RawLog"
+                         AcceptsReturn="True"
+                         VerticalScrollBarVisibility="Auto"
+                         TextWrapping="Wrap"
+                         Padding="10"
+                         FontFamily="Consolas"
+                         FontSize="11"
+                         Background="Transparent"
+                         Foreground="{DynamicResource LogTextBrush}"
+                         BorderThickness="0"
+                         CaretBrush="{DynamicResource CyanAccentBrush}"/>
+            </Border>
         </GroupBox>
     </Grid>
 </Window>

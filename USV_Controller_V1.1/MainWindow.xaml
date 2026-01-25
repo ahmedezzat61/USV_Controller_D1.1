@@ -3,111 +3,149 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         Title="USV Controller V1.1"
-        Height="680" Width="700"
+        Height="750" Width="700"
         WindowStartupLocation="CenterScreen"
-        Background="#FAFAFA">
+        ResizeMode="CanMinimize"
+        WindowStyle="None"
+        Background="{DynamicResource DarkBackgroundGradient}">
 
-    <Grid Margin="20">
+    <Grid Margin="8">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <TextBlock Text="D1 Controller"
-                   HorizontalAlignment="Center"
-                   FontSize="26" FontWeight="Bold"
-                   Foreground="#333"
-                   Margin="0"/>
+        <!-- Header with Glow Effect -->
+        <Border Background="Transparent" Padding="0,0,0,7">
+            <TextBlock Text="Demolition #1"
+                       HorizontalAlignment="Center"
+                       Style="{DynamicResource HeaderText}"
+                       FontSize="28"/>
+        </Border>
 
         <!-- Main Layout -->
-        <Grid Grid.Row="1" Margin="0,20,0,20">
+        <Grid Grid.Row="1" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="1.1*"/>
                 <ColumnDefinition Width="4*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- =================== COLUMN 0 (unchanged) =================== -->
+            <!-- =================== COLUMN 0 - Left Panel =================== -->
             <StackPanel Grid.Column="0" Margin="10,0" VerticalAlignment="Top">
 
                 <!-- Clutch Feedback -->
-                <GroupBox Header="Clutch" FontWeight="Bold" Margin="0,0,0,10">
+                <GroupBox Header="Clutch" Style="{DynamicResource MaritimeGroupBox}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Slider x:Name="ClutchSlider"
-                                Orientation="Vertical"
-                                Minimum="410" Maximum="625"
-                                Value="515"
-                                IsEnabled="False"
-                                Height="180" Width="25"
-                                VerticalAlignment="Center"
+                        <!-- Slider with maritime styling -->
+                        <Border Background="{DynamicResource ClutchBackgroundBrush}"
+                                BorderBrush="{DynamicResource PanelBorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="5"
                                 HorizontalAlignment="Center"
-                                Foreground="#2196F3"
-                                Background="White"/>
+                                VerticalAlignment="Center">
+                            <Slider x:Name="ClutchSlider"
+                                    Orientation="Vertical"
+                                    Minimum="410" Maximum="625"
+                                    Value="515"
+                                    IsEnabled="False"
+                                    Height="180" Width="25"
+                                    VerticalAlignment="Center"
+                                    HorizontalAlignment="Center"
+                                    Style="{DynamicResource MaritimeSlider}"/>
+                        </Border>
 
                         <StackPanel Grid.Column="1"
                                     VerticalAlignment="Center"
                                     Margin="10,0,0,0">
-                            <TextBlock Text="F" FontSize="14" FontWeight="Bold" Foreground="Green" Margin="0,0,0,10"/>
-                            <TextBlock Text="N" FontSize="14" FontWeight="Bold" Foreground="Orange" Margin="0,50,0,50"/>
-                            <TextBlock Text="R" FontSize="14" FontWeight="Bold" Foreground="Red"/>
+                            <TextBlock Text="F" FontSize="14" FontWeight="Bold" Margin="0,0,0,20"
+                                       Foreground="{DynamicResource GreenGlowBrush}"/>
+                            <TextBlock Text="N" FontSize="14" FontWeight="Bold" Margin="0,45,0,50"
+                                       Foreground="{DynamicResource OrangeGlowBrush}"/>
+                            <TextBlock Text="R" FontSize="14" FontWeight="Bold"
+                                       Foreground="{DynamicResource RedGlowBrush}"/>
                         </StackPanel>
                     </Grid>
                 </GroupBox>
 
                 <!-- Contact Switch -->
-                <GroupBox Header="Contact Switch" FontWeight="Bold" Margin="0,0,0,10">
-                    <StackPanel Margin="10" Orientation="Horizontal" HorizontalAlignment="Center">
-                        <Ellipse x:Name="RelayIndicator"
-                                 Width="25" Height="25"
-                                 Fill="Red"
-                                 Stroke="#333"
-                                 StrokeThickness="1"/>
+                <GroupBox Header="Contact Switch" Style="{DynamicResource MaritimeGroupBox}">
+                    <StackPanel Margin="0" Orientation="Horizontal" HorizontalAlignment="Center">
+                        <Border Background="{DynamicResource DarkNavyBrush}" 
+                                CornerRadius="15" 
+                                Padding="3">
+                            <Ellipse x:Name="RelayIndicator"
+                                     Width="25" Height="25"
+                                     Fill="#FF4444"
+                                     Stroke="{DynamicResource PanelBorderBrush}"
+                                     StrokeThickness="2"/>
+                        </Border>
                         <TextBlock x:Name="RelayText"
                                    Text="OFF"
                                    VerticalAlignment="Center"
                                    FontWeight="Bold"
+                                   Foreground="{DynamicResource LightTextBrush}"
                                    Margin="10,0,0,0"/>
                     </StackPanel>
                 </GroupBox>
 
                 <!-- Link Quality -->
-                <GroupBox Header="Link Quality" FontWeight="Bold" Margin="0,0,0,10">
-                    <StackPanel Margin="10" Orientation="Vertical" HorizontalAlignment="Center">
-                        <Ellipse x:Name="LinkIndicator"
-                                 Width="25" Height="25"
-                                 Fill="Gray"
-                                 Stroke="#333"
-                                 StrokeThickness="1"/>
+                <GroupBox Header="Link Quality" Style="{DynamicResource MaritimeGroupBox}">
+                    <StackPanel Margin="0" Orientation="Vertical" HorizontalAlignment="Center">
+                        <Border Background="{DynamicResource DarkNavyBrush}" 
+                                CornerRadius="15" 
+                                Padding="3"
+                                HorizontalAlignment="Center">
+                            <Ellipse x:Name="LinkIndicator"
+                                     Width="25" Height="25"
+                                     Fill="#666666"
+                                     Stroke="{DynamicResource PanelBorderBrush}"
+                                     StrokeThickness="2"/>
+                        </Border>
                         <TextBlock x:Name="LinkText"
                                    Text="Disconnected"
                                    VerticalAlignment="Center"
                                    FontWeight="Bold"
-                                   Margin="0,10,0,0"/>
+                                   Foreground="{DynamicResource DimTextBrush}"
+                                   HorizontalAlignment="Center"
+                                   Margin="0,0,0,0"/>
                     </StackPanel>
                 </GroupBox>
 
             </StackPanel>
 
-            <!-- =================== COLUMN 1 (unchanged) =================== -->
-            <StackPanel Grid.Column="1" Margin="20,0" VerticalAlignment="Top">
+            <!-- =================== COLUMN 1 - Right Panel =================== -->
+            <StackPanel Grid.Column="1" Margin="0,0" VerticalAlignment="Top">
 
-                <!-- Speed Feedback -->
-                <GroupBox Header="Speed (RPM)" FontWeight="Bold" Margin="0,0,0,0" Height="256">
+                <!-- Speed Feedback - Redesigned Gauges -->
+                <GroupBox Header="Speed (RPM)" Style="{DynamicResource MaritimeGroupBox}" Height="270">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- Left RPM -->
+                        <!-- Left RPM Gauge -->
                         <Grid Grid.Column="0" Width="250" Height="250" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <!-- Outer metallic ring -->
+                            <Ellipse Width="222" Height="222" 
+                                     Stroke="{DynamicResource MetallicRingGradient}" 
+                                     StrokeThickness="8"
+                                     Fill="Transparent"/>
+
+                            <!-- Dark gauge face -->
+                            <Ellipse Width="218" Height="218" 
+                                     Fill="{DynamicResource DarkNavyBrush}"
+                                     Stroke="{DynamicResource PanelBorderBrush}"
+                                     StrokeThickness="1"/>
+
                             <lvc:PieChart x:Name="RpmPieLeft"
                                           Width="250" Height="250"
                                           IsHitTestVisible="False"
@@ -118,30 +156,58 @@
                             </lvc:PieChart>
 
                             <Canvas IsHitTestVisible="False">
+                                <!-- Glowing needle -->
                                 <Line x:Name="GaugeNeedleLeft"
                                       X1="125" Y1="125"
                                       X2="125" Y2="35"
-                                      Stroke="Black"
+                                      Stroke="{DynamicResource CyanAccentBrush}"
                                       StrokeThickness="3"/>
-                                <Ellipse Width="18" Height="18" Fill="Black" Canvas.Left="116" Canvas.Top="116"/>
-                                <TextBlock x:Name="SpeedValueTextLeft"
-                                           Text="0 %"
-                                           FontSize="14"
-                                           FontWeight="Bold"
-                                           Canvas.Left="85"
-                                           Canvas.Top="140"/>
+                                <!-- Center hub -->
+                                <Ellipse Width="22" Height="22" Canvas.Left="114" Canvas.Top="114"
+                                         Fill="{DynamicResource CyanAccentBrush}"/>
+
                             </Canvas>
+
+                            <!-- Value Display (Refactored) -->
+                            <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,45"
+                                    Background="{DynamicResource DarkNavyBrush}"
+                                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="3"
+                                    Padding="4,2">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="SpeedValueTextLeft"
+                                               Text="0 %"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               FontFamily="Consolas"
+                                               Foreground="{DynamicResource CyanTextBrush}"/>
+                                    <TextBlock Text=" Refrence Speed"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource LightTextBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="5,0,0,0"/>
+                                </StackPanel>
+                            </Border>
                         </Grid>
 
-                        <TextBlock Text="Refrence Speed"
-                                   FontWeight="Bold"
-                                   FontSize="14"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Bottom"
-                                   Margin="0,8,0,0"/>
 
-                        <!-- Right RPM -->
+
+                        <!-- Right RPM Gauge -->
                         <Grid Grid.Column="1" Width="250" Height="250" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <!-- Outer metallic ring -->
+                            <Ellipse Width="222" Height="222" 
+                                     Stroke="{DynamicResource MetallicRingGradient}" 
+                                     StrokeThickness="8"
+                                     Fill="Transparent"/>
+
+                            <!-- Dark gauge face -->
+                            <Ellipse Width="218" Height="218" 
+                                     Fill="{DynamicResource DarkNavyBrush}"
+                                     Stroke="{DynamicResource PanelBorderBrush}"
+                                     StrokeThickness="1"/>
+
                             <lvc:PieChart x:Name="RpmPieRight"
                                           Width="250" Height="250"
                                           IsHitTestVisible="False"
@@ -152,75 +218,103 @@
                             </lvc:PieChart>
 
                             <Canvas IsHitTestVisible="False">
+                                <!-- Glowing needle -->
                                 <Line x:Name="GaugeNeedleRight"
                                       X1="125" Y1="125"
                                       X2="125" Y2="35"
-                                      Stroke="Black"
+                                      Stroke="{DynamicResource CyanAccentBrush}"
                                       StrokeThickness="3"/>
-                                <Ellipse Width="18" Height="18" Fill="Black" Canvas.Left="116" Canvas.Top="116"/>
-                                <TextBlock x:Name="SpeedValueTextRight"
-                                           Text="0 RPM"
-                                           FontSize="14"
-                                           FontWeight="Bold"
-                                           Canvas.Left="85"
-                                           Canvas.Top="140"/>
+                                <!-- Center hub -->
+                                <Ellipse Width="22" Height="22" Canvas.Left="114" Canvas.Top="114"
+                                         Fill="{DynamicResource CyanAccentBrush}"/>
+
                             </Canvas>
+
+                            <!-- Value Display (Refactored) -->
+                            <Border VerticalAlignment="Bottom" HorizontalAlignment="Center" Margin="0,0,0,45"
+                                    Background="{DynamicResource DarkNavyBrush}"
+                                    BorderBrush="{DynamicResource PanelBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="3"
+                                    Padding="4,2">
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                    <TextBlock x:Name="SpeedValueTextRight"
+                                               Text="0 %"
+                                               FontSize="14"
+                                               FontWeight="Bold"
+                                               FontFamily="Consolas"
+                                               Foreground="{DynamicResource CyanTextBrush}"/>
+                                    <TextBlock Text=" Actual Speed"
+                                               FontSize="12"
+                                               FontWeight="Bold"
+                                               Foreground="{DynamicResource LightTextBrush}"
+                                               VerticalAlignment="Center"
+                                               Margin="5,0,0,0"/>
+                                </StackPanel>
+                            </Border>
                         </Grid>
 
-                        <TextBlock Text="Actual Speed"
-                                   Grid.Column="1"
-                                   FontWeight="Bold"
-                                   FontSize="14"
-                                   HorizontalAlignment="Center"
-                                   VerticalAlignment="Bottom"
-                                   Margin="0,8,0,0"/>
+
                     </Grid>
                 </GroupBox>
 
-                <!-- Rudder Feedback -->
-                <GroupBox Header="Rudder (°)" FontWeight="Bold" Margin="0,5,0,0">
+                <!-- Rudder Feedback - Maritime Redesign -->
+                <GroupBox Header="Rudder" Style="{DynamicResource MaritimeGroupBox}">
                     <Grid>
                         <Canvas x:Name="RudderCanvas"
                                 Height="100"
                                 Width="400"
-                                Background="#F5F5F5"
+                                Background="{DynamicResource DarkNavyBrush}"
                                 ClipToBounds="True"
                                 HorizontalAlignment="Center"
                                 VerticalAlignment="Center">
 
-                            <Rectangle Width="180" Height="10" Fill="#FFB3B3" Canvas.Left="20" Canvas.Top="45"/>
-                            <Rectangle Width="180" Height="10" Fill="#B3FFB3" Canvas.Left="200" Canvas.Top="45"/>
+                            <!-- Port (Left) zone - Red tint -->
+                            <Rectangle Width="180" Height="10" Canvas.Left="20" Canvas.Top="45"
+                                       Fill="#44FF4444"/>
 
-                            <Line X1="20" Y1="50" X2="380" Y2="50" Stroke="Black" StrokeThickness="2"/>
-                            <Line X1="20"  Y1="40" X2="20"  Y2="60" Stroke="Black" StrokeThickness="1"/>
-                            <Line X1="80"  Y1="40" X2="80"  Y2="60" Stroke="Black" StrokeThickness="1"/>
-                            <Line X1="140" Y1="40" X2="140" Y2="60" Stroke="Black" StrokeThickness="1"/>
-                            <Line X1="200" Y1="40" X2="200" Y2="60" Stroke="Black" StrokeThickness="2"/>
-                            <Line X1="260" Y1="40" X2="260" Y2="60" Stroke="Black" StrokeThickness="1"/>
-                            <Line X1="320" Y1="40" X2="320" Y2="60" Stroke="Black" StrokeThickness="1"/>
-                            <Line X1="380" Y1="40" X2="380" Y2="60" Stroke="Black" StrokeThickness="1"/>
+                            <!-- Starboard (Right) zone - Green tint -->
+                            <Rectangle Width="180" Height="10" Canvas.Left="200" Canvas.Top="45"
+                                       Fill="#4400FF88"/>
 
-                            <TextBlock Text="-30°" Canvas.Left="10"  Canvas.Top="65" FontWeight="Bold"/>
-                            <TextBlock Text="-20°" Canvas.Left="70"  Canvas.Top="65" FontWeight="Bold"/>
-                            <TextBlock Text="-10°" Canvas.Left="130" Canvas.Top="65" FontWeight="Bold"/>
-                            <TextBlock Text="0°"   Canvas.Left="195" Canvas.Top="65" FontWeight="Bold"/>
-                            <TextBlock Text="+10°" Canvas.Left="250" Canvas.Top="65" FontWeight="Bold"/>
-                            <TextBlock Text="+20°" Canvas.Left="310" Canvas.Top="65" FontWeight="Bold"/>
-                            <TextBlock Text="+30°" Canvas.Left="370" Canvas.Top="65" FontWeight="Bold"/>
+                            <!-- Main scale line -->
+                            <Line X1="20" Y1="50" X2="380" Y2="50" 
+                                  Stroke="{DynamicResource CyanAccentBrush}" 
+                                  StrokeThickness="2"/>
 
+                            <!-- Tick marks -->
+                            <Line X1="20"  Y1="40" X2="20"  Y2="60" Stroke="{DynamicResource CyanAccentBrush}" StrokeThickness="1"/>
+                            <Line X1="80"  Y1="40" X2="80"  Y2="60" Stroke="{DynamicResource CyanAccentBrush}" StrokeThickness="1"/>
+                            <Line X1="140" Y1="40" X2="140" Y2="60" Stroke="{DynamicResource CyanAccentBrush}" StrokeThickness="1"/>
+                            <Line X1="200" Y1="40" X2="200" Y2="60" Stroke="{DynamicResource CyanAccentBrush}" StrokeThickness="2"/>
+                            <Line X1="260" Y1="40" X2="260" Y2="60" Stroke="{DynamicResource CyanAccentBrush}" StrokeThickness="1"/>
+                            <Line X1="320" Y1="40" X2="320" Y2="60" Stroke="{DynamicResource CyanAccentBrush}" StrokeThickness="1"/>
+                            <Line X1="380" Y1="40" X2="380" Y2="60" Stroke="{DynamicResource CyanAccentBrush}" StrokeThickness="1"/>
+
+                            <!-- Degree labels -->
+                            <TextBlock Text="-30" Canvas.Left="10"  Canvas.Top="65" FontWeight="Bold" Foreground="{DynamicResource RedGlowBrush}" FontSize="10"/>
+                            <TextBlock Text="-20" Canvas.Left="70"  Canvas.Top="65" FontWeight="Bold" Foreground="{DynamicResource LightTextBrush}" FontSize="10"/>
+                            <TextBlock Text="-10" Canvas.Left="130" Canvas.Top="65" FontWeight="Bold" Foreground="{DynamicResource LightTextBrush}" FontSize="10"/>
+                            <TextBlock Text="0"   Canvas.Left="197" Canvas.Top="65" FontWeight="Bold" Foreground="{DynamicResource CyanTextBrush}" FontSize="10"/>
+                            <TextBlock Text="+10" Canvas.Left="250" Canvas.Top="65" FontWeight="Bold" Foreground="{DynamicResource LightTextBrush}" FontSize="10"/>
+                            <TextBlock Text="+20" Canvas.Left="310" Canvas.Top="65" FontWeight="Bold" Foreground="{DynamicResource LightTextBrush}" FontSize="10"/>
+                            <TextBlock Text="+30" Canvas.Left="367" Canvas.Top="65" FontWeight="Bold" Foreground="{DynamicResource GreenGlowBrush}" FontSize="10"/>
+
+                            <!-- Glowing position indicator -->
                             <Rectangle x:Name="RudderIndicator"
-                                       Width="12" Height="25"
-                                       Fill="#4CAF50"
-                                       Stroke="Black"
-                                       RadiusX="2" RadiusY="2"
-                                       Canvas.Top="38"
-                                       Canvas.Left="194"/>
+                                       Width="12" Height="30"
+                                       Canvas.Top="35"
+                                       Canvas.Left="194"
+                                       RadiusX="3" RadiusY="3"
+                                       Fill="{DynamicResource CyanAccentBrush}"/>
                         </Canvas>
 
                         <TextBlock x:Name="SteeringValueText"
-                                   Text="0°"
+                                   Text="0"
                                    FontWeight="Bold"
                                    FontSize="14"
+                                   FontFamily="Consolas"
+                                   Foreground="{DynamicResource CyanTextBrush}"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Bottom"
                                    Margin="0,1"/>
@@ -231,135 +325,141 @@
 
         </Grid>
 
-        <!-- =================== NEW: ESP Explosive Circuit Status Panel =================== -->
-        <GroupBox Grid.Row="2" Header="Explosive Circuit Status" FontWeight="Bold" Margin="0,10,0,10">
-            <Grid Margin="10">
+        <!-- =================== ESP Explosive Circuit Status Panel =================== -->
+        <GroupBox Grid.Row="2" Header="Explosive Circuit Status" Style="{DynamicResource MaritimeGroupBox}">
+            <Grid Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
-                    <!--<ColumnDefinition Width="*"/>-->
+                    <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Relay 1: Door/Gate -->
                 <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                    <Ellipse x:Name="EspRelay1Led"
-                             Width="25" Height="25"
-                             Fill="Gray"
-                             Stroke="#333"
-                             StrokeThickness="2"
-                             Margin="0,0,0,5"/>
-                    <TextBlock Text="Door/Gate"
+                    <Border Background="{DynamicResource DarkNavyBrush}" 
+                            CornerRadius="15" 
+                            Padding="3"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,5">
+                        <Ellipse x:Name="EspRelay1Led"
+                                 Width="25" Height="25"
+                                 Fill="#666666"
+                                 Stroke="{DynamicResource PanelBorderBrush}"
+                                 StrokeThickness="2"/>
+                    </Border>
+                    <TextBlock Text="USV Gate"
                                FontSize="11"
                                FontWeight="SemiBold"
+                               Foreground="{DynamicResource LightTextBrush}"
                                HorizontalAlignment="Center"
                                TextWrapping="Wrap"
-                               TextAlignment="Center"
-                               Margin="0,0,0,3"/>
-                    <!--<TextBlock Text="(RFID)"
-                               FontSize="9"
-                               FontStyle="Italic"
-                               Foreground="#666"
-                               HorizontalAlignment="Center"/>-->
+                               TextAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Relay 2: Position -->
                 <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                    <Ellipse x:Name="EspRelay2Led"
-                             Width="25" Height="25"
-                             Fill="Gray"
-                             Stroke="#333"
-                             StrokeThickness="2"
-                             Margin="0,0,0,5"/>
-                    <TextBlock Text="Position"
-                               FontSize="11"
-                               FontWeight="SemiBold"
-                               HorizontalAlignment="Center"
-                               TextWrapping="Wrap"
-                               TextAlignment="Center"
-                               Margin="0,0,0,3"/>
-                    <!--<TextBlock Text="(Manual)"
-                               FontSize="9"
-                               FontStyle="Italic"
-                               Foreground="#666"
-                               HorizontalAlignment="Center"/>-->
+                    <Border Background="{DynamicResource DarkNavyBrush}" 
+            CornerRadius="15" 
+            Padding="3"
+            HorizontalAlignment="Center"
+            Margin="0,0,0,5">
+                        <Ellipse x:Name="EspRelay2Led"
+                 Width="25" Height="25"
+                 Fill="#666666"
+                 Stroke="{DynamicResource PanelBorderBrush}"
+                 StrokeThickness="2"/>
+                    </Border>
+                    <TextBlock x:Name="GpsDistanceText"
+               Text="Position"
+               FontSize="11"
+               FontWeight="SemiBold"
+               Foreground="{DynamicResource LightTextBrush}"
+               HorizontalAlignment="Center"
+               TextWrapping="Wrap"
+               TextAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Relay 3: Speed -->
                 <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                    <Ellipse x:Name="EspRelay3Led"
-                             Width="25" Height="25"
-                             Fill="Gray"
-                             Stroke="#333"
-                             StrokeThickness="2"
-                             Margin="0,0,0,5"/>
+                    <Border Background="{DynamicResource DarkNavyBrush}" 
+                            CornerRadius="15" 
+                            Padding="3"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,5">
+                        <Ellipse x:Name="EspRelay3Led"
+                                 Width="25" Height="25"
+                                 Fill="#666666"
+                                 Stroke="{DynamicResource PanelBorderBrush}"
+                                 StrokeThickness="2"/>
+                    </Border>
                     <TextBlock Text="Speed"
+                               Name="SpeedText"
                                FontSize="11"
                                FontWeight="SemiBold"
+                               Foreground="{DynamicResource LightTextBrush}"
                                HorizontalAlignment="Center"
                                TextWrapping="Wrap"
-                               TextAlignment="Center"
-                               Margin="0,0,0,3"/>
-                    <!--<TextBlock Text="(Manual)"
-                               FontSize="9"
-                               FontStyle="Italic"
-                               Foreground="#666"
-                               HorizontalAlignment="Center"/>-->
+                               TextAlignment="Center"/>
                 </StackPanel>
 
                 <!-- Relay 4: Fire -->
                 <StackPanel Grid.Column="3" HorizontalAlignment="Center">
-                    <Ellipse x:Name="EspRelay4Led"
-                             Width="25" Height="25"
-                             Fill="Gray"
-                             Stroke="#333"
-                             StrokeThickness="2"
-                             Margin="0,0,0,5"/>
+                    <Border Background="{DynamicResource DarkNavyBrush}" 
+                            CornerRadius="15" 
+                            Padding="3"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,5">
+                        <Ellipse x:Name="EspRelay4Led"
+                                 Width="25" Height="25"
+                                 Fill="#666666"
+                                 Stroke="{DynamicResource PanelBorderBrush}"
+                                 StrokeThickness="2"/>
+                    </Border>
                     <TextBlock Text="Fire"
                                FontSize="11"
                                FontWeight="SemiBold"
+                               Foreground="{DynamicResource LightTextBrush}"
                                HorizontalAlignment="Center"
                                TextWrapping="Wrap"
-                               TextAlignment="Center"
-                               Margin="0,0,0,3"/>
-                    <!--<TextBlock Text="(Pulse)"
-                               FontSize="9"
-                               FontStyle="Italic"
-                               Foreground="#666"
-                               HorizontalAlignment="Center"/>-->
+                               TextAlignment="Center"/>
                 </StackPanel>
 
-                <!-- Relay 5: Watchdog -->
-                <!--<StackPanel Grid.Column="4" HorizontalAlignment="Center">
-                    <Ellipse x:Name="EspRelay5Led"
-                             Width="30" Height="30"
-                             Fill="Gray"
-                             Stroke="#333"
-                             StrokeThickness="2"
-                             Margin="0,0,0,5"/>
-                    <TextBlock Text="Watchdog"
+                <!-- Groundstation Door -->
+                <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                    <Border Background="{DynamicResource DarkNavyBrush}" 
+                            CornerRadius="15" 
+                            Padding="3"
+                            HorizontalAlignment="Center"
+                            Margin="0,0,0,5">
+                        <Ellipse x:Name="GroundStationDoorLed"
+                                 Width="25" Height="25"
+                                 Fill="Gray"
+                                 Stroke="{DynamicResource PanelBorderBrush}"
+                                 StrokeThickness="2"/>
+                    </Border>
+                    <TextBlock Text="GS Gate"
                                FontSize="11"
                                FontWeight="SemiBold"
+                               Foreground="{DynamicResource LightTextBrush}"
                                HorizontalAlignment="Center"
                                TextWrapping="Wrap"
-                               TextAlignment="Center"
-                               Margin="0,0,0,3"/>-->
-                    <!--<TextBlock Text="(Manual)"
-                               FontSize="9"
-                               FontStyle="Italic"
-                               Foreground="#666"
-                               HorizontalAlignment="Center"/>-->
-                <!--</StackPanel>-->
-
+                               TextAlignment="Center"/>
+                </StackPanel>
             </Grid>
         </GroupBox>
 
         <!-- Footer -->
-        <TextBlock Grid.Row="3"
-                   Text="© 2025 مركز البحوث الفنية و المعايرة القوات البحرية"
-                   HorizontalAlignment="Center"
-                   Foreground="#666"
-                   Margin="0,10,0,0"/>
+        <Border Grid.Row="3" 
+                Background="{DynamicResource MidNavyBrush}"
+                CornerRadius="4"
+                Padding="10,8"
+                Margin="0,10,0,0">
+            <TextBlock Text="2025 Egyptian Naval Forces Technical Research Center"
+                       HorizontalAlignment="Center"
+                       Foreground="{DynamicResource DimTextBrush}"
+                       FontSize="12"/>
+        </Border>
     </Grid>
 </Window>
