@@ -4,6 +4,8 @@
         Title="USV Camera Feed" 
         HorizontalAlignment="Left"
         VerticalAlignment="Bottom"
+        ResizeMode="CanMinimize"
+        WindowStyle="None"
         Height="600" 
         Width="800"
         WindowStartupLocation="CenterOwner"
@@ -19,11 +21,12 @@
         <!-- Header -->
         <Border Grid.Row="0" 
                 Background="#252526" 
-                Padding="10,8"
+                Padding="10,1"
                 BorderBrush="#3F3F46" 
                 BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
@@ -39,7 +42,18 @@
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <StackPanel Grid.Column="1" 
+                <!-- Camera Status -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Grid.Column="1">
+                    <TextBlock  
+                   Text="Ready" 
+                   FontSize="11"
+                   Foreground="#4EC9B0"
+                   VerticalAlignment="Center"
+                   Margin="10,0,0,0"/>
+                </StackPanel>
+            
+
+            <StackPanel Grid.Column="2" 
                             Orientation="Horizontal" 
                             VerticalAlignment="Center">
                     <Ellipse x:Name="StreamingIndicator"
@@ -86,7 +100,7 @@
             </Grid>
         </Border>
 
-        <!-- Footer with Controls Info -->
+        <!-- Footer with Controls Info --><!--
         <Border Grid.Row="2" 
                 Background="#252526" 
                 Padding="10,8"
@@ -98,7 +112,7 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Control Instructions -->
+                --><!-- Control Instructions --><!--
                 <StackPanel Orientation="Horizontal" 
                             VerticalAlignment="Center">
                     <Border Background="#3C3C3C" 
@@ -118,19 +132,12 @@
                         <TextBlock FontSize="11" 
                                    Foreground="#CCCCCC">
                             <Run Text="RTSP:" FontWeight="SemiBold"/>
-                            <Run Text="192.168.1.100:554"/>
+                            <Run Text="192.168.0.50:554"/>
                         </TextBlock>
                     </Border>
                 </StackPanel>
 
-                <!-- Camera Status -->
-                <TextBlock Grid.Column="1" 
-                           Text="Ready" 
-                           FontSize="11"
-                           Foreground="#4EC9B0"
-                           VerticalAlignment="Center"
-                           Margin="10,0,0,0"/>
-            </Grid>
-        </Border>
+                
+        </Border>-->
     </Grid>
 </Window>

@@ -21,10 +21,13 @@ namespace USV_Controller_V1._1
         private byte _usvSequence = 0;
         private byte _espSequence = 0;
         private int _lastSystemFaultState = 0;
+        private byte _watchdogEsp = 1;
 
         // ✅ Button Press Timers
         private DateTime _watchdogPressStartTime = DateTime.MinValue;
         private DateTime _explodePressStartTime = DateTime.MinValue;
+        private DateTime _button2PressStartTime = DateTime.MinValue;  // ✅ ADD THIS
+
 
         // ✅ Scale DirectInput axis (0-65535) to your required range (0-1023)
         private int ScaleAxis(int value)
@@ -69,6 +72,60 @@ namespace USV_Controller_V1._1
             return -Math.Clamp(normalized, -1.0, 1.0);
         }
 
+        private byte watchdogEsp(byte value)
+        {
+            // If joystick is not available, restore to 1
+            if (_joystickState == null)
+            {
+                _button2PressStartTime = DateTime.MinValue;
+                return 1;  // ✅ Auto-restore when joystick lost
+            }
+
+            // Check if button 2 is pressed
+            if (_joystickState.Buttons[1])
+            {
+                // Start timing if this is first press
+                if (_button2PressStartTime == DateTime.MinValue)
+                {
+                    _button2PressStartTime = DateTime.UtcNow;
+                    Dispatcher.Invoke(() => Log("⏱️ Button 2 pressed - hold for 3 seconds to reset Explosive Circuit..."));
+                }
+
+                // Check if held for 3 seconds
+                if ((DateTime.UtcNow - _button2PressStartTime).TotalSeconds >= 3)
+                {
+                    // Reset watchdog ONCE
+                    if (value == 1)  // ✅ Only log once
+                    {
+                        Dispatcher.Invoke(() => Log("✅ Button 2 held for 3s - Watchdog ESP resets"));
+                    }
+                    return 0;  // Stay at 0 while button is held
+                }
+            }
+            else
+            {
+                // Button released
+                if (_button2PressStartTime != DateTime.MinValue)
+                {
+                    // If it was being pressed but not for 3 seconds
+                    if ((DateTime.UtcNow - _button2PressStartTime).TotalSeconds < 3)
+                    {
+                        Dispatcher.Invoke(() => Log("⚠️ Button 2 released early - watchdog not reset"));
+                    }
+                    else if (value == 0)
+                    {
+                        // Was at 0, now restoring
+                        Dispatcher.Invoke(() => Log("✅ Button 2 released - Watchdog ESP restored to 1"));
+                    }
+                }
+                _button2PressStartTime = DateTime.MinValue;
+                return 1;  // ✅ Auto-restore to 1 when button released
+            }
+
+            // Return current value if button pressed but not for 3 seconds yet
+            return value;
+        }
+
         // ✅ Calculate XOR checksum
         private byte CalculateChecksum(byte[] data, int length)
         {
@@ -100,7 +157,7 @@ namespace USV_Controller_V1._1
         private byte GPSSafeDistance(byte value)
         {
 
-            if (value > 10 && value < 255) return 1;
+            if (value > 1.5 && value < 255) return 1;
             else return 0;
         }
 
@@ -216,15 +273,15 @@ namespace USV_Controller_V1._1
 
             // Button states
             byte start = _joystickState.Buttons[7] ? (byte)1 : (byte)0;
-            byte march = (_joystickState.Buttons[8] && throttleValue > 61000) ? (byte)1 : (byte)0;
+            byte march = (_joystickState.Buttons[8] && throttleValue > 55000) ? (byte)1 : (byte)0;
             byte gps = AquireFinal;
             byte tiltup = _joystickState.Buttons[10] ? (byte)1 : (byte)0;
             byte tiltdown = _joystickState.Buttons[11] ? (byte)1 : (byte)0;
-            byte alarm = _joystickState.Buttons[1] ? (byte)1 : (byte)0;
+            byte alarm = _joystickState.Buttons[9] ? (byte)1 : (byte)0;
             byte forward = _joystickState.Buttons[15] ? (byte)1 : (byte)0;
             byte backward = _joystickState.Buttons[13] ? (byte)1 : (byte)0;
             byte nutral = _joystickState.Buttons[14] ? (byte)1 : (byte)0;
-            byte watchdog = _groundStationCard;
+            byte watchdog = _watchdogEsp;
 
             // Build packet: [0xAA] [0x55] [SEQ] [14 data bytes] [CHECKSUM]
             byte[] packet = new byte[18];
@@ -310,7 +367,7 @@ namespace USV_Controller_V1._1
                     _explodePressStartTime = DateTime.UtcNow;
                 }
 
-                if ((DateTime.UtcNow - _explodePressStartTime).TotalSeconds >= 3)
+                if ((DateTime.UtcNow - _explodePressStartTime).TotalSeconds >= 3 && _groundStationCard==1)
                 {
                     explodeFinal = 1;
                 }

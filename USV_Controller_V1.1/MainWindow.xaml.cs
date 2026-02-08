@@ -100,12 +100,12 @@ namespace USV_Controller_V1._1
 
             try
             {
-                var camWin = new CameraWindow(rtspUrl)
+                _cameraWindow = new CameraWindow(rtspUrl)
                 {
                     Owner = this
                 };
 
-                camWin.Show();
+                _cameraWindow.Show();
             }
             catch (Exception ex)
             {
@@ -494,13 +494,17 @@ namespace USV_Controller_V1._1
             }
         }
 
+        private CameraWindow? _cameraWindow;
+
+        // ✅ P/Invoke for external window management (OpenCPN)
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
+
         private void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            this.Left = 0;
-            this.Top = 0;
-            this.Width = 660;
-            this.Height = 730;
-
             Log("✅ USV Controller initialized and ready.");
             Log("🎮 Press Button 7 to Connect/Disconnect");
             this.Activate();
@@ -514,6 +518,148 @@ namespace USV_Controller_V1._1
             catch (Exception ex)
             {
                 Log($"⚠️ Camera error: {ex.Message}");
+            }
+
+            // ✅ Arrange windows according to plan
+            ArrangeWindows();
+
+            // ✅ Set Startup
+            try
+            {
+                SetStartup();
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠️ Startup config error: {ex.Message}");
+            }
+        }
+
+        private void SetStartup()
+        {
+            try
+            {
+                string rkPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run";
+                using (Microsoft.Win32.RegistryKey rk = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(rkPath, true))
+                {
+                    if (rk != null)
+                    {
+                        var appName = "USV_Controller_V1.1";
+                        var appPath = System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName;
+                        
+                        // Check if value exists, if not, set it
+                        var existingValue = rk.GetValue(appName);
+                        if (existingValue == null || existingValue.ToString() != appPath)
+                        {
+                            rk.SetValue(appName, appPath);
+                            Log("✅ Added to Windows Startup");
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠️ Could not add to startup: {ex.Message}");
+            }
+        }
+
+        // ✅ P/Invoke for window style modification
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+        private const int GWL_STYLE = -16;
+        private const int WS_CAPTION = 0x00C00000;
+        private const int WS_THICKFRAME = 0x00040000;
+        private const int WS_POPUP = -2147483648; // 0x80000000
+
+        private void ArrangeWindows()
+        {
+            // Get available screen dimensions (excluding taskbar)
+            double screenWidth = SystemParameters.WorkArea.Width;
+            double screenHeight = SystemParameters.WorkArea.Height;
+            double halfWidth = screenWidth / 2.0;
+
+            // 1. Position Main Window (Top Left - 50% Width, 75% Height)
+            this.Left = 0;
+            this.Top = 0;
+            this.Width = halfWidth;
+            this.Height = screenHeight * 0.65;
+
+            // 2. Position Monitor Window (Bottom Left - 50% Width, 25% Height)
+            if (_monitor != null)
+            {
+                _monitor.Left = 0;
+                _monitor.Top = this.Height; // Starts exactly where Main ends
+                _monitor.Width = halfWidth;
+                _monitor.Height = screenHeight * 0.35; // Remaining vertical space
+            }
+
+            // 3. Position Camera Window (Top Right - 50% Width, 55% Height)
+            if (_cameraWindow != null)
+            {
+                _cameraWindow.Left = halfWidth; // Starts at middle of screen
+                _cameraWindow.Top = 0;
+                _cameraWindow.Width = halfWidth;
+                _cameraWindow.Height = screenHeight * 0.55; // 55% height
+            }
+
+            // 4. Position OpenCPN (Bottom Right - 50% Width, 45% Height)
+            try
+            {
+                Process[] processes = Process.GetProcessesByName("opencpn");
+                if (processes.Length > 0)
+                {
+                    IntPtr handle = processes[0].MainWindowHandle;
+                    if (handle != IntPtr.Zero)
+                    {
+                        // ✅ Remove Title Bar and Resize Frame
+                        int style = GetWindowLong(handle, GWL_STYLE);
+                        
+                        // Remove Caption (Title bar) and ThickFrame (Resizing border)
+                        // Verify we aren't completely breaking it, basically turning it into a borderless window
+                        if ((style & WS_CAPTION) != 0 || (style & WS_THICKFRAME) != 0)
+                        {
+                            style &= ~(WS_CAPTION | WS_THICKFRAME);
+                            SetWindowLong(handle, GWL_STYLE, style);
+                        }
+
+                        // Calculate logical position
+                        double xLogical = halfWidth;
+                        double yLogical = screenHeight * 0.55; // Starts at 55%
+                        double wLogical = halfWidth;
+                        double hLogical = screenHeight * 0.45; // Remaining 45%
+
+                        // ✅ Convert to Physical Pixels for SetWindowPos (DPI Scaling)
+                        double dpiScaleX = 1.0;
+                        double dpiScaleY = 1.0;
+
+                        // Retrieve DPI from the current window's PresentationSource
+                        var source = PresentationSource.FromVisual(this);
+                        if (source != null && source.CompositionTarget != null)
+                        {
+                            dpiScaleX = source.CompositionTarget.TransformToDevice.M11;
+                            dpiScaleY = source.CompositionTarget.TransformToDevice.M22;
+                        }
+
+                        int x = (int)(xLogical * dpiScaleX);
+                        int y = (int)(yLogical * dpiScaleY);
+                        int w = (int)(wLogical * dpiScaleX);
+                        int h = (int)(hLogical * dpiScaleY);
+
+                        // FLAGS: 
+                        // 0x0004 (SWP_NOZORDER) 
+                        // 0x0040 (SWP_SHOWWINDOW)
+                        // 0x0020 (SWP_FRAMECHANGED) -> Required after style change!
+                        SetWindowPos(handle, IntPtr.Zero, x, y, w, h, 0x0004 | 0x0040 | 0x0020);
+                        
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log($"⚠️ Could not position OpenCPN: {ex.Message}");
             }
         }
 

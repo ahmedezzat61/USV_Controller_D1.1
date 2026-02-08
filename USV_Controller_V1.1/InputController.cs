@@ -171,7 +171,7 @@ namespace USV_Controller_V1._1
             {
                 return;
             }
-
+            _watchdogEsp = watchdogEsp(_watchdogEsp);
             // ✅ Send USV packet
             byte[] usvPacket = BuildPacket();
 
@@ -216,7 +216,7 @@ namespace USV_Controller_V1._1
                 {
                     string espPreview = "ESP: " + BitConverter.ToString(espPacket).Replace("-", " ");
                     // Uncomment if you want to see ESP packets
-                    // UpdatePacket(espPreview);
+                    //UpdatePacket(espPreview);
                 });
             }
             catch (Exception ex)

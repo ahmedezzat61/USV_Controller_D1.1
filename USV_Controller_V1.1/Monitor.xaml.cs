@@ -20,13 +20,13 @@ namespace USV_Controller_V1._1
             });
         }
 
-        // --- Receive packet preview text from MainWindow ---
+         //--- Receive packet preview text from MainWindow ---
         public void UpdatePacket(string text)
         {
-            Dispatcher.Invoke(() =>
-            {
-                PacketPreview.Text = text;
-            });
+            //Dispatcher.Invoke(() =>
+            //{
+            //    PacketPreview.Text = text;
+            //});
         }
     }
 }

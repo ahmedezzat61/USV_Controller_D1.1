@@ -2,6 +2,8 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Monitor"
+        ResizeMode="CanMinimize"
+        WindowStyle="None"
         Height="450"
         Width="380"
         Background="{DynamicResource DarkBackgroundGradient}"
@@ -10,12 +12,13 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="10"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+             <RowDefinition Height="*"/>
+             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Packet Preview -->
-        <GroupBox Grid.Row="0"
+         <!--Packet Preview--> 
+        <!--<GroupBox Grid.Row="1"
                   Header="Packet Preview"
                   Style="{DynamicResource MaritimeGroupBox}">
             <Border Background="{DynamicResource DarkNavyBrush}"
@@ -30,12 +33,12 @@
                            TextWrapping="Wrap"
                            Foreground="{DynamicResource CyanTextBrush}"/>
             </Border>
-        </GroupBox>
+        </GroupBox>-->
 
         <!-- Log -->
         <GroupBox Grid.Row="2"
                   Header="Raw Log"
-                  Style="{DynamicResource MaritimeGroupBox}">
+                  Style="{DynamicResource MaritimeGroupBox}" Margin="0,0,0,10">
             <Border Background="{DynamicResource DarkNavyBrush}"
                     BorderBrush="{DynamicResource PanelBorderBrush}"
                     BorderThickness="1"
@@ -53,5 +56,16 @@
                          CaretBrush="{DynamicResource CyanAccentBrush}"/>
             </Border>
         </GroupBox>
+        <!-- Footer -->
+        <Border Grid.Row="3" 
+        Background="{DynamicResource MidNavyBrush}"
+        CornerRadius="4"
+        Padding="10,1"
+        Margin="0,0,0,0">
+            <TextBlock Text="© 2025 مركز البحوث الفنية و المعايرة القوات البحرية"
+               HorizontalAlignment="Center"
+               Foreground="{DynamicResource DimTextBrush}"
+               FontSize="12"/>
+        </Border>
     </Grid>
 </Window>

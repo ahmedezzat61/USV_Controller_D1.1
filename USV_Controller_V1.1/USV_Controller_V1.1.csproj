@@ -8,8 +8,15 @@
 	  <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
 	 <NoWarn>NU1701</NoWarn>
-
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
+
+	<!-- Add this section to ensure the icon is included -->
+	<ItemGroup>
+		<Content Include="AppIcon.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
   <ItemGroup>
     <Compile Remove="OpenCPN\**" />

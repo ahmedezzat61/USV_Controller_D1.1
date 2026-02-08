@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         Title="USV Controller V1.1"
-        Height="750" Width="700"
+        Height="665" Width="700"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanMinimize"
         WindowStyle="None"
@@ -18,7 +18,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header with Glow Effect -->
-        <Border Background="Transparent" Padding="0,0,0,7">
+        <Border Background="Transparent" Padding="0,0,0,15">
             <TextBlock Text="Demolition #1"
                        HorizontalAlignment="Center"
                        Style="{DynamicResource HeaderText}"
@@ -349,7 +349,7 @@
                                  Stroke="{DynamicResource PanelBorderBrush}"
                                  StrokeThickness="2"/>
                     </Border>
-                    <TextBlock Text="USV Gate"
+                    <TextBlock Text="USV Authentication"
                                FontSize="11"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource LightTextBrush}"
@@ -405,7 +405,7 @@
                 </StackPanel>
 
                 <!-- Relay 4: Fire -->
-                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
+                <StackPanel Grid.Column="4" HorizontalAlignment="Center">
                     <Border Background="{DynamicResource DarkNavyBrush}" 
                             CornerRadius="15" 
                             Padding="3"
@@ -427,7 +427,7 @@
                 </StackPanel>
 
                 <!-- Groundstation Door -->
-                <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                <StackPanel Grid.Column="3" HorizontalAlignment="Center">
                     <Border Background="{DynamicResource DarkNavyBrush}" 
                             CornerRadius="15" 
                             Padding="3"
@@ -439,7 +439,7 @@
                                  Stroke="{DynamicResource PanelBorderBrush}"
                                  StrokeThickness="2"/>
                     </Border>
-                    <TextBlock Text="GS Gate"
+                    <TextBlock Text="GS Authentication"
                                FontSize="11"
                                FontWeight="SemiBold"
                                Foreground="{DynamicResource LightTextBrush}"
@@ -450,16 +450,6 @@
             </Grid>
         </GroupBox>
 
-        <!-- Footer -->
-        <Border Grid.Row="3" 
-                Background="{DynamicResource MidNavyBrush}"
-                CornerRadius="4"
-                Padding="10,8"
-                Margin="0,10,0,0">
-            <TextBlock Text="2025 Egyptian Naval Forces Technical Research Center"
-                       HorizontalAlignment="Center"
-                       Foreground="{DynamicResource DimTextBrush}"
-                       FontSize="12"/>
-        </Border>
+        
     </Grid>
 </Window>
