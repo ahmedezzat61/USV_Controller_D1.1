@@ -1,4 +1,5 @@
 ﻿using LiveChartsCore;
+using System.Threading.Tasks;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
 using LiveChartsCore.SkiaSharpView.WPF;
@@ -70,7 +71,7 @@ namespace USV_Controller_V1._1
         private bool _isEspConnected = false;
 
 
-        private const string CameraIp = "192.168.0.50";
+        private const string CameraIp = "192.168.80.68";
         private const int CameraRtspPort = 554;
         private const int CameraOnvifPort = 2020;
         private const string CameraUsername = "SMBSMB";
@@ -266,7 +267,7 @@ namespace USV_Controller_V1._1
             _monitor = new MonitorWindow();
             _monitor.Show();
             InitializeJoystick();
-
+            ConnectButton_Click(null, null);
             SetupRpmChart(RpmPieLeft);
             SetupRpmChart(RpmPieRight);
 
@@ -503,8 +504,35 @@ namespace USV_Controller_V1._1
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
         private static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
 
-        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        // ✅ P/Invoke for taskbar hide/show
+        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        private static extern int ShowWindow(IntPtr hwnd, int nCmdShow);
+
+        private const int SW_HIDE = 0;
+        private const int SW_SHOW = 5;
+
+        private void HideTaskbar()
         {
+            IntPtr taskbar = FindWindow("Shell_TrayWnd", null);
+            if (taskbar != IntPtr.Zero)
+                ShowWindow(taskbar, SW_HIDE);
+        }
+
+        private void ShowTaskbar()
+        {
+            IntPtr taskbar = FindWindow("Shell_TrayWnd", null);
+            if (taskbar != IntPtr.Zero)
+                ShowWindow(taskbar, SW_SHOW);
+        }
+
+        private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // ✅ Hide taskbar so it doesn't cover any part of the GUI
+            HideTaskbar();
+
             Log("✅ USV Controller initialized and ready.");
             Log("🎮 Press Button 7 to Connect/Disconnect");
             this.Activate();
@@ -520,8 +548,15 @@ namespace USV_Controller_V1._1
                 Log($"⚠️ Camera error: {ex.Message}");
             }
 
-            // ✅ Arrange windows according to plan
-            ArrangeWindows();
+            // ✅ Add delay to allow screen to initialize
+            await Task.Delay(2000);
+
+            // ✅ Arrange windows with retry logic
+            for (int i = 0; i < 3; i++)
+            {
+                ArrangeWindows();
+                await Task.Delay(1000); // Wait 1 second between attempts to ensure stability
+            }
 
             // ✅ Set Startup
             try
@@ -576,20 +611,22 @@ namespace USV_Controller_V1._1
 
         private void ArrangeWindows()
         {
-            // Get available screen dimensions (excluding taskbar)
-            double screenWidth = SystemParameters.WorkArea.Width;
-            double screenHeight = SystemParameters.WorkArea.Height;
+            // ✅ Use full screen dimensions (covers taskbar area)
+            double screenWidth = SystemParameters.PrimaryScreenWidth;
+            double screenHeight = SystemParameters.PrimaryScreenHeight;
             double halfWidth = screenWidth / 2.0;
 
-            // 1. Position Main Window (Top Left - 50% Width, 75% Height)
+            // 1. Position Main Window (Top Left - 50% Width, 65% Height)
+            this.Topmost = true;
             this.Left = 0;
             this.Top = 0;
             this.Width = halfWidth;
             this.Height = screenHeight * 0.65;
 
-            // 2. Position Monitor Window (Bottom Left - 50% Width, 25% Height)
+            // 2. Position Monitor Window (Bottom Left - 50% Width, 35% Height)
             if (_monitor != null)
             {
+                _monitor.Topmost = true;
                 _monitor.Left = 0;
                 _monitor.Top = this.Height; // Starts exactly where Main ends
                 _monitor.Width = halfWidth;
@@ -599,6 +636,7 @@ namespace USV_Controller_V1._1
             // 3. Position Camera Window (Top Right - 50% Width, 55% Height)
             if (_cameraWindow != null)
             {
+                _cameraWindow.Topmost = true;
                 _cameraWindow.Left = halfWidth; // Starts at middle of screen
                 _cameraWindow.Top = 0;
                 _cameraWindow.Width = halfWidth;
@@ -618,7 +656,6 @@ namespace USV_Controller_V1._1
                         int style = GetWindowLong(handle, GWL_STYLE);
                         
                         // Remove Caption (Title bar) and ThickFrame (Resizing border)
-                        // Verify we aren't completely breaking it, basically turning it into a borderless window
                         if ((style & WS_CAPTION) != 0 || (style & WS_THICKFRAME) != 0)
                         {
                             style &= ~(WS_CAPTION | WS_THICKFRAME);
@@ -635,7 +672,6 @@ namespace USV_Controller_V1._1
                         double dpiScaleX = 1.0;
                         double dpiScaleY = 1.0;
 
-                        // Retrieve DPI from the current window's PresentationSource
                         var source = PresentationSource.FromVisual(this);
                         if (source != null && source.CompositionTarget != null)
                         {
@@ -649,11 +685,15 @@ namespace USV_Controller_V1._1
                         int h = (int)(hLogical * dpiScaleY);
 
                         // FLAGS: 
-                        // 0x0004 (SWP_NOZORDER) 
                         // 0x0040 (SWP_SHOWWINDOW)
                         // 0x0020 (SWP_FRAMECHANGED) -> Required after style change!
-                        SetWindowPos(handle, IntPtr.Zero, x, y, w, h, 0x0004 | 0x0040 | 0x0020);
-                        
+                        // Use HWND_TOPMOST (-1) to place OpenCPN over the taskbar too
+                        IntPtr HWND_TOPMOST = new IntPtr(-1);
+                        SetWindowPos(handle, HWND_TOPMOST, x, y, w, h, (uint)(0x0040 | 0x0020));
+
+                        // Then remove topmost so it doesn't stay always-on-top
+                        IntPtr HWND_NOTOPMOST = new IntPtr(-2);
+                        SetWindowPos(handle, HWND_NOTOPMOST, x, y, w, h, (uint)(0x0002 | 0x0001)); // SWP_NOMOVE | SWP_NOSIZE
                     }
                 }
             }
@@ -661,11 +701,19 @@ namespace USV_Controller_V1._1
             {
                 Log($"⚠️ Could not position OpenCPN: {ex.Message}");
             }
+
+            // ✅ Remove Topmost after positioning so windows behave normally
+            this.Topmost = false;
+            if (_monitor != null) _monitor.Topmost = false;
+            if (_cameraWindow != null) _cameraWindow.Topmost = false;
         }
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             Log("🛑 Shutting down...");
+
+            // ✅ Restore taskbar before closing
+            ShowTaskbar();
 
             _timer?.Stop();
             _pingTimer?.Stop();

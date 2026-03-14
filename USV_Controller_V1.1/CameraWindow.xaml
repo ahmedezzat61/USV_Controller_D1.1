@@ -8,7 +8,7 @@
         WindowStyle="None"
         Height="600" 
         Width="800"
-        WindowStartupLocation="CenterOwner"
+        WindowStartupLocation="Manual"
         Background="#1E1E1E">
 
     <Grid>

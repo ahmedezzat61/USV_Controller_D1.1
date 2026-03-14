@@ -15,12 +15,12 @@ namespace USV_Controller_V1._1
     public partial class MainWindow
     {
         // ✅ USV/Arduino Configuration
-        private const string UsvIp = "192.168.0.177";
+        private const string UsvIp = "192.168.80.66";
         private const int UsvSendPort = 8888;
         private const int UsvReceivePort = 8889;
 
         // ESP32 Configuration
-        private const string EspIp = "192.168.0.178";
+        private const string EspIp = "192.168.80.69";
         private const int EspPort = 8890;
         private const int EspReceivePort = 8891;  // NEW: ESP feedback port
 

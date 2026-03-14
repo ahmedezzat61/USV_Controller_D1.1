@@ -12,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Vlc.DotNet.Core.Interops.Signatures;
+using System.Windows.Input;
 
 namespace USV_Controller_V1._1
 {
@@ -21,7 +22,7 @@ namespace USV_Controller_V1._1
         private byte _usvSequence = 0;
         private byte _espSequence = 0;
         private int _lastSystemFaultState = 0;
-        private byte _watchdogEsp = 1;
+        private byte _watchdogEsp = 0;
 
         // ✅ Button Press Timers
         private DateTime _watchdogPressStartTime = DateTime.MinValue;
@@ -74,15 +75,15 @@ namespace USV_Controller_V1._1
 
         private byte watchdogEsp(byte value)
         {
-            // If joystick is not available, restore to 1
+            // If joystick is not available, restore to 0
             if (_joystickState == null)
             {
                 _button2PressStartTime = DateTime.MinValue;
-                return 1;  // ✅ Auto-restore when joystick lost
+                return 0;  // ✅ Auto-restore when joystick lost
             }
 
-            // Check if button 2 is pressed
-            if (_joystickState.Buttons[1])
+            // Check if button 10 is pressed
+            if (_joystickState.Buttons[9])
             {
                 // Start timing if this is first press
                 if (_button2PressStartTime == DateTime.MinValue)
@@ -99,7 +100,7 @@ namespace USV_Controller_V1._1
                     {
                         Dispatcher.Invoke(() => Log("✅ Button 2 held for 3s - Watchdog ESP resets"));
                     }
-                    return 0;  // Stay at 0 while button is held
+                    return 1;  // Stay at 1 while button is held
                 }
             }
             else
@@ -115,11 +116,11 @@ namespace USV_Controller_V1._1
                     else if (value == 0)
                     {
                         // Was at 0, now restoring
-                        Dispatcher.Invoke(() => Log("✅ Button 2 released - Watchdog ESP restored to 1"));
+                        Dispatcher.Invoke(() => Log("✅ Button 2 released - Resting the explosive circuit "));
                     }
                 }
                 _button2PressStartTime = DateTime.MinValue;
-                return 1;  // ✅ Auto-restore to 1 when button released
+                return 0;  // ✅ Auto-restore to 0 when button released
             }
 
             // Return current value if button pressed but not for 3 seconds yet
@@ -142,12 +143,12 @@ namespace USV_Controller_V1._1
             if (value == 255)
             {
                 Dispatcher.Invoke(() =>
-                    GpsDistanceText.Text = " Positoin Not Acquired"
+                    GpsDistanceText.Text = " Positoin Acquired"
                 );
                 return 0;
             }
 
-            float distance = (byte)(value / 10.0f);
+            float distance = value / 10.0f;
             Dispatcher.Invoke(() =>
                 GpsDistanceText.Text = $"Position: {distance.ToString("F1")} km"
             );
@@ -157,7 +158,7 @@ namespace USV_Controller_V1._1
         private byte GPSSafeDistance(byte value)
         {
 
-            if (value > 1.5 && value < 255) return 1;
+            if (value ==0 ) return 1; // 1.5 && value < 255
             else return 0;
         }
 
@@ -174,7 +175,7 @@ namespace USV_Controller_V1._1
         private byte SafeSpeed(byte value)
         {
             float speed=CalculateSpeed(value);
-            if (speed > 5.0f) return 1;
+            if (speed ==0) return 1; //>5.0f
             else return 0;
         }
 
@@ -277,7 +278,7 @@ namespace USV_Controller_V1._1
             byte gps = AquireFinal;
             byte tiltup = _joystickState.Buttons[10] ? (byte)1 : (byte)0;
             byte tiltdown = _joystickState.Buttons[11] ? (byte)1 : (byte)0;
-            byte alarm = _joystickState.Buttons[9] ? (byte)1 : (byte)0;
+            byte alarm = _joystickState.Buttons[1] ? (byte)1 : (byte)0;
             byte forward = _joystickState.Buttons[15] ? (byte)1 : (byte)0;
             byte backward = _joystickState.Buttons[13] ? (byte)1 : (byte)0;
             byte nutral = _joystickState.Buttons[14] ? (byte)1 : (byte)0;
@@ -387,9 +388,9 @@ namespace USV_Controller_V1._1
 
             // Data payload (4 bytes)
             packet[3] = watchdog;
-            packet[4] = explodeFinal;
-            packet[5] = SafeSpeed(_speedRelayFeedback);
-            packet[6] = GPSSafeDistance(_positionRelayFeedback) ;
+            packet[4] = explodeFinal;//(byte)(System.Windows.Input.Keyboard.IsKeyDown(System.Windows.Input.Key.A) ? 1 : 0); 
+            packet[5] = SafeSpeed(_speedRelayFeedback);//(byte)(System.Windows.Input.Keyboard.IsKeyDown(System.Windows.Input.Key.S) ? 1 : 0); //
+            packet[6] = GPSSafeDistance(_positionRelayFeedback); //(byte)(System.Windows.Input.Keyboard.IsKeyDown(System.Windows.Input.Key.D) ? 1 : 0); 
 
             // Checksum
             packet[7] = CalculateChecksum(packet, 7);

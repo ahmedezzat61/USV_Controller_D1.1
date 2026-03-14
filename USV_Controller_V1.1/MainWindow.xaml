@@ -4,9 +4,9 @@
         xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
         Title="USV Controller V1.1"
         Height="665" Width="700"
-        WindowStartupLocation="CenterScreen"
         ResizeMode="CanMinimize"
         WindowStyle="None"
+        WindowStartupLocation="Manual"
         Background="{DynamicResource DarkBackgroundGradient}">
 
     <Grid Margin="8">

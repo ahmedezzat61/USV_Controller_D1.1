@@ -7,7 +7,7 @@
         Height="450"
         Width="380"
         Background="{DynamicResource DarkBackgroundGradient}"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="Manual">
 
     <Grid Margin="10">
         <Grid.RowDefinitions>
