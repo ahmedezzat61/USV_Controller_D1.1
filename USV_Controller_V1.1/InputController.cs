@@ -113,9 +113,8 @@ namespace USV_Controller_V1._1
                 Log($"✅ Connected!");
                 Log($"📡 USV/Arduino: {UsvIp}:{UsvSendPort} {(arduinoOnline ? "(Online)" : "(Offline - Video Only)")}");
                 Log($"📡 ESP32: {EspIp}:{EspPort}");
-                Log($"📹 Camera video: {CameraIp}:554 (RTSP)");
-                Log($"🎮 Camera PTZ: ONVIF ContinuousMove (Port {CameraOnvifPort})");
-                Log($"🕹️ X/Y axes control camera pan/tilt when Button 1 pressed");
+                Log($"📹 Camera video: {CameraIp}:{CameraPort} (Hikvision SDK)");
+                Log($"🎮 Camera PTZ: Hikvision SDK PTZControllWithSpeed");
                 Log($"🎮 Joystick: {(_joystick != null ? "Connected ✅" : "NOT CONNECTED ❌")}");
             }
             catch (Exception ex)
@@ -135,7 +134,7 @@ namespace USV_Controller_V1._1
             _timer.Stop();
             _pingTimer.Stop();
 
-            try { _ptzController?.Stop().Wait(500); } catch { }
+            try { _ptzController?.PTZStop(); } catch { }
 
             try { usvClient?.Close(); } catch { }
             try { espClient?.Close(); } catch { }
@@ -160,187 +159,132 @@ namespace USV_Controller_V1._1
 
         private void Timer_Elapsed(object? sender, ElapsedEventArgs e)
         {
+            // ✅ USV/joystick requires connection
             if (!_connected || _joystick == null || _joystickState == null)
             {
+                // ✅ PTZ still works even without USV connection
+                TryControlPTZ();
                 return;
             }
 
             UpdateJoystickState();
 
-            if (_joystick == null || _joystickState == null)
-            {
-                return;
-            }
-            _watchdogEsp = watchdogEsp(_watchdogEsp);
-            // ✅ Send USV packet
-            byte[] usvPacket = BuildPacket();
+            if (_joystick == null || _joystickState == null) return;
 
+            _watchdogEsp = watchdogEsp(_watchdogEsp);
+
+            // Send USV packet
+            byte[] usvPacket = BuildPacket();
             try
             {
                 if (usvClient != null && usvEndpoint != null)
-                {
                     usvClient.Send(usvPacket, usvPacket.Length, usvEndpoint);
-                }
 
                 Dispatcher.Invoke(() =>
                 {
                     string packetPreview = "USV: " + BitConverter.ToString(usvPacket).Replace("-", " ");
-
                     if (this.FindName("PacketPreview") is TextBlock tbUsv)
-                    {
                         tbUsv.Text = packetPreview;
-                    }
-
                     UpdatePacket(packetPreview);
                 });
             }
             catch (Exception ex)
             {
                 if (DateTime.Now.Second % 10 == 0)
-                {
                     Log($"⚠️ USV send error: {ex.Message}");
-                }
             }
 
-            // ✅ Send ESP packet
+            // Send ESP packet
             byte[] espPacket = BuildPacket2();
-
             try
             {
                 if (espClient != null && espEndpoint != null)
-                {
                     espClient.Send(espPacket, espPacket.Length, espEndpoint);
-                }
-
-                Dispatcher.Invoke(() =>
-                {
-                    string espPreview = "ESP: " + BitConverter.ToString(espPacket).Replace("-", " ");
-                    // Uncomment if you want to see ESP packets
-                    //UpdatePacket(espPreview);
-                });
             }
             catch (Exception ex)
             {
                 if (DateTime.Now.Second % 10 == 0)
-                {
                     Log($"⚠️ ESP send error: {ex.Message}");
-                }
             }
 
-            // ✅ Camera PTZ control via ONVIF using POV Hat
+            // ✅ PTZ runs always
+            TryControlPTZ();
+        }
+
+        // ✅ NEW: Extracted PTZ logic into its own method — runs regardless of USV connection
+        private void TryControlPTZ()
+        {
+            if (_joystick == null || _joystickState == null) return;
+            if (_ptzController == null || !_ptzController.IsConnected) return;
+
             try
             {
-                double panVelocity = 0;
-                double tiltVelocity = 0;
-                double zoomVelocity = 0;
+                UpdateJoystickState();
+                if (_joystickState == null) return;
 
                 int povPosition = _joystickState.PointOfViewControllers[0];
+                uint ptzCommand = 0;
+                bool shouldMove = false;
 
                 if (povPosition != -1)
                 {
-                    double cameraSpeed = 0.5;
-
                     if (povPosition >= 0 && povPosition <= 4500)
                     {
-                        tiltVelocity = cameraSpeed;
+                        ptzCommand = CHCNetSDK.TILT_UP;
+                        shouldMove = true;
                     }
                     else if (povPosition > 4500 && povPosition <= 13500)
                     {
-                        panVelocity = cameraSpeed;
-
                         if (povPosition < 9000)
-                            tiltVelocity = cameraSpeed * 0.7;
+                            ptzCommand = CHCNetSDK.UP_RIGHT;
                         else if (povPosition > 9000)
-                            tiltVelocity = -cameraSpeed * 0.7;
+                            ptzCommand = CHCNetSDK.DOWN_RIGHT;
+                        else
+                            ptzCommand = CHCNetSDK.PAN_RIGHT;
+                        shouldMove = true;
                     }
                     else if (povPosition > 13500 && povPosition <= 22500)
                     {
-                        tiltVelocity = -cameraSpeed;
+                        ptzCommand = CHCNetSDK.TILT_DOWN;
+                        shouldMove = true;
                     }
                     else if (povPosition > 22500 && povPosition <= 31500)
                     {
-                        panVelocity = -cameraSpeed;
-
                         if (povPosition < 27000)
-                            tiltVelocity = -cameraSpeed * 0.7;
+                            ptzCommand = CHCNetSDK.DOWN_LEFT;
                         else if (povPosition > 27000)
-                            tiltVelocity = cameraSpeed * 0.7;
-                    }
-                    else
-                    {
-                        tiltVelocity = cameraSpeed;
-                    }
-
-                    if (_joystickState.Sliders != null && _joystickState.Sliders.Length > 0)
-                    {
-                        int sliderValue = _joystickState.Sliders[0];
-                        int centered = sliderValue - 32768;
-
-                        if (Math.Abs(centered) > 5000)
-                        {
-                            zoomVelocity = -(centered / 32768.0);
-                            zoomVelocity = Math.Clamp(zoomVelocity, -1.0, 1.0);
-                        }
+                            ptzCommand = CHCNetSDK.UP_LEFT;
+                        else
+                            ptzCommand = CHCNetSDK.PAN_LEFT;
+                        shouldMove = true;
                     }
                 }
 
-                bool hasMovement = Math.Abs(panVelocity) > 0.01 ||
-                                  Math.Abs(tiltVelocity) > 0.01 ||
-                                  Math.Abs(zoomVelocity) > 0.01;
-
-                if (_ptzController != null)
+                if (shouldMove)
                 {
-                    if (hasMovement)
-                    {
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await _ptzController.ContinuousMove(panVelocity, tiltVelocity, zoomVelocity);
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"ContinuousMove error: {ex.Message}");
-                            }
-                        });
-
-                        _lastPanVelocity = panVelocity;
-                        _lastTiltVelocity = tiltVelocity;
-                    }
-                    else if (_lastPanVelocity != 0 || _lastTiltVelocity != 0)
-                    {
-                        _ = Task.Run(async () =>
-                        {
-                            try
-                            {
-                                await _ptzController.Stop();
-                            }
-                            catch (Exception ex)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Stop error: {ex.Message}");
-                            }
-                        });
-
-                        _lastPanVelocity = 0;
-                        _lastTiltVelocity = 0;
-                    }
+                    _ptzController.PTZMove(ptzCommand, 4);
+                    _lastPanVelocity = 1;
+                }
+                else if (_lastPanVelocity != 0)
+                {
+                    _ptzController.PTZStop();
+                    _lastPanVelocity = 0;
                 }
 
                 Dispatcher.Invoke(() =>
                 {
                     if (this.FindName("PacketPreviewCamera") is TextBlock tbCam)
                     {
-                        string hatStatus = povPosition == -1 ? "CENTERED" : $"{povPosition / 100}°";
-                        tbCam.Text = $"CAM [Hat:{hatStatus}]: Pan={panVelocity:F2}, Tilt={tiltVelocity:F2}, Zoom={zoomVelocity:F2}";
+                        string hatStatus = povPosition == -1 ? "CENTERED" : $"{_joystickState.PointOfViewControllers[0] / 100}°";
+                        string action = shouldMove ? $"Moving (Cmd {ptzCommand})" : "Stopped";
+                        tbCam.Text = $"CAM [Hat:{hatStatus}]: {action}";
                     }
                 });
             }
             catch (Exception ex)
             {
                 if (DateTime.Now.Second % 5 == 0)
-                {
                     Log($"⚠️ Camera PTZ error: {ex.Message}");
-                }
             }
         }
 

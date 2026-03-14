@@ -11,7 +11,6 @@ using System.Net.Sockets;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Vlc.DotNet.Core.Interops.Signatures;
 using System.Windows.Input;
 
 namespace USV_Controller_V1._1
@@ -158,7 +157,7 @@ namespace USV_Controller_V1._1
         private byte GPSSafeDistance(byte value)
         {
 
-            if (value ==0 ) return 1; // 1.5 && value < 255
+            if (value >1.5 ) return 1; // 1.5 && value < 255
             else return 0;
         }
 
@@ -175,7 +174,7 @@ namespace USV_Controller_V1._1
         private byte SafeSpeed(byte value)
         {
             float speed=CalculateSpeed(value);
-            if (speed ==0) return 1; //>5.0f
+            if (speed >=5.0) return 1; //>5.0f
             else return 0;
         }
 

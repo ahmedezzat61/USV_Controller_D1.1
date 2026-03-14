@@ -72,36 +72,23 @@ namespace USV_Controller_V1._1
 
 
         private const string CameraIp = "192.168.80.68";
-        private const int CameraRtspPort = 554;
-        private const int CameraOnvifPort = 2020;
-        private const string CameraUsername = "SMBSMB";
-        private const string CameraPassword = "smbsmbsmb";
-        private const string CameraRtspPath = "/stream1";
+        private const int CameraPort = 2020;
+        private const string CameraUsername = "admin";
+        private const string CameraPassword = "SMBSMBSMB12";
 
-        private TapoPtzController? _ptzController;
+        private HikvisionPtzController? _ptzController;
 
         private void OpenCameraWindow()
         {
-            string rtspUrl;
-
-            if (!string.IsNullOrEmpty(CameraUsername) && !string.IsNullOrEmpty(CameraPassword))
-            {
-                rtspUrl = $"rtsp://{CameraUsername}:{CameraPassword}@{CameraIp}:{CameraRtspPort}{CameraRtspPath}";
-            }
-            else
-            {
-                rtspUrl = $"rtsp://{CameraIp}:{CameraRtspPort}{CameraRtspPath}";
-            }
-
-            Log($"📹 Opening camera stream...");
+            Log($"📹 Opening camera window...");
             Log($" IP: {CameraIp}");
-            Log($" Port: {CameraRtspPort}");
-            Log($" Path: {CameraRtspPath}");
-            Log($" Auth: {(!string.IsNullOrEmpty(CameraUsername) ? "Yes" : "No")}");
+            Log($" Port: {CameraPort}");
 
             try
             {
-                _cameraWindow = new CameraWindow(rtspUrl)
+                if (_ptzController == null) return;
+                
+                _cameraWindow = new CameraWindow(_ptzController)
                 {
                     Owner = this
                 };
@@ -115,15 +102,12 @@ namespace USV_Controller_V1._1
                 System.Windows.MessageBox.Show(
                     $"Camera window failed to open:\n{ex.Message}\n\n" +
                     $"📍 Troubleshooting Steps:\n\n" +
-                    $"1. Test URL in VLC first:\n" +
-                    $"   {rtspUrl}\n\n" +
-                    $"2. Check camera web interface:\n" +
+                    $"1. Check camera web interface:\n" +
                     $"   http://{CameraIp}\n\n" +
-                    $"3. Verify:\n" +
+                    $"2. Verify:\n" +
                     $"   • Camera is ON and reachable\n" +
-                    $"   • RTSP is enabled on camera\n" +
                     $"   • Username/password are correct\n" +
-                    $"   • RTSP path matches your camera model",
+                    $"   • Server port is {CameraPort}",
                     "Camera Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
@@ -267,7 +251,6 @@ namespace USV_Controller_V1._1
             _monitor = new MonitorWindow();
             _monitor.Show();
             InitializeJoystick();
-            ConnectButton_Click(null, null);
             SetupRpmChart(RpmPieLeft);
             SetupRpmChart(RpmPieRight);
 
@@ -282,7 +265,7 @@ namespace USV_Controller_V1._1
 
             _timer = new System.Timers.Timer(100);
             _timer.Elapsed += Timer_Elapsed;
-
+            _timer.Start();
             _joystickPollTimer = new System.Timers.Timer(100);
             _joystickPollTimer.Elapsed += JoystickPollTimer_Elapsed;
             _joystickPollTimer.Start();
@@ -326,8 +309,9 @@ namespace USV_Controller_V1._1
             _pingTimer = new System.Timers.Timer(2000);
             _pingTimer.Elapsed += PingTimer_Elapsed;
 
-            _ptzController = new TapoPtzController(CameraIp, CameraOnvifPort, CameraUsername, CameraPassword);
-            Log($"🎥 Tapo PTZ controller initialized (Port {CameraOnvifPort})");
+            _ptzController = new HikvisionPtzController(CameraIp, CameraPort, CameraUsername, CameraPassword);
+            _ptzController.OnStatusUpdate += (msg, color) => Log($"🎥 Hikvision: {msg}");
+            Log($"🎥 Hikvision PTZ controller initialized (Port {CameraPort})");
 
             this.Loaded += MainWindow_Loaded;
             this.Closing += MainWindow_Closing;
@@ -504,69 +488,73 @@ namespace USV_Controller_V1._1
         [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
         private static extern bool MoveWindow(IntPtr hWnd, int X, int Y, int nWidth, int nHeight, bool bRepaint);
 
-        // ✅ P/Invoke for taskbar hide/show
-        [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
-        private static extern IntPtr FindWindow(string lpClassName, string? lpWindowName);
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern int ShowWindow(IntPtr hwnd, int nCmdShow);
-
-        private const int SW_HIDE = 0;
-        private const int SW_SHOW = 5;
-
-        private void HideTaskbar()
-        {
-            IntPtr taskbar = FindWindow("Shell_TrayWnd", null);
-            if (taskbar != IntPtr.Zero)
-                ShowWindow(taskbar, SW_HIDE);
-        }
-
-        private void ShowTaskbar()
-        {
-            IntPtr taskbar = FindWindow("Shell_TrayWnd", null);
-            if (taskbar != IntPtr.Zero)
-                ShowWindow(taskbar, SW_SHOW);
-        }
-
         private async void MainWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // ✅ Hide taskbar so it doesn't cover any part of the GUI
-            HideTaskbar();
-
             Log("✅ USV Controller initialized and ready.");
             Log("🎮 Press Button 7 to Connect/Disconnect");
             this.Activate();
             this.Focus();
 
+            // ✅ Ping camera first before touching SDK
+            bool cameraReachable = await Task.Run(() =>
+            {
+                try
+                {
+                    using var ping = new System.Net.NetworkInformation.Ping();
+                    var reply = ping.Send(System.Net.IPAddress.Parse(CameraIp), 1500);
+                    return reply.Status == System.Net.NetworkInformation.IPStatus.Success;
+                }
+                catch { return false; }
+            });
+
+            Log(cameraReachable
+                ? $"✅ Camera reachable at {CameraIp}"
+                : $"⚠️ Camera offline at {CameraIp} — PTZ disabled until reconnect");
+
+            // ✅ Only init PTZ controller if camera is reachable
+            if (cameraReachable)
+            {
+                try
+                {
+                    bool ptzOk = await Task.Run(() =>
+                    {
+                        try { return _ptzController?.Initialize() ?? false; }
+                        catch (Exception ex)
+                        {
+                            Dispatcher.Invoke(() => Log($"⚠️ PTZ exception: {ex.Message}"));
+                            return false;
+                        }
+                    });
+
+                    Log(ptzOk ? "✅ PTZ ready" : "⚠️ PTZ login failed");
+                }
+                catch (Exception ex)
+                {
+                    Log($"⚠️ PTZ init error: {ex.Message}");
+                }
+            }
+
+            // ✅ Always open camera window — it manages its own ping loop and reconnects automatically
             try
             {
                 OpenCameraWindow();
-                Log("📹 Camera window opened");
+                Log("📹 Camera window opened — waiting for camera...");
             }
             catch (Exception ex)
             {
-                Log($"⚠️ Camera error: {ex.Message}");
+                Log($"⚠️ Camera window error: {ex.Message}");
             }
 
-            // ✅ Add delay to allow screen to initialize
             await Task.Delay(2000);
 
-            // ✅ Arrange windows with retry logic
             for (int i = 0; i < 3; i++)
             {
                 ArrangeWindows();
-                await Task.Delay(1000); // Wait 1 second between attempts to ensure stability
+                await Task.Delay(1000);
             }
 
-            // ✅ Set Startup
-            try
-            {
-                SetStartup();
-            }
-            catch (Exception ex)
-            {
-                Log($"⚠️ Startup config error: {ex.Message}");
-            }
+            try { SetStartup(); }
+            catch (Exception ex) { Log($"⚠️ Startup config error: {ex.Message}"); }
         }
 
         private void SetStartup()
@@ -611,15 +599,17 @@ namespace USV_Controller_V1._1
 
         private void ArrangeWindows()
         {
-            // ✅ Use full screen dimensions (covers taskbar area)
-            double screenWidth = SystemParameters.PrimaryScreenWidth;
-            double screenHeight = SystemParameters.PrimaryScreenHeight;
+            // ✅ Use WorkArea dimensions (respects taskbar area)
+            double screenWidth = SystemParameters.WorkArea.Width;
+            double screenHeight = SystemParameters.WorkArea.Height;
+            double screenLeft = SystemParameters.WorkArea.Left;
+            double screenTop = SystemParameters.WorkArea.Top;
             double halfWidth = screenWidth / 2.0;
 
             // 1. Position Main Window (Top Left - 50% Width, 65% Height)
             this.Topmost = true;
-            this.Left = 0;
-            this.Top = 0;
+            this.Left = screenLeft;
+            this.Top = screenTop;
             this.Width = halfWidth;
             this.Height = screenHeight * 0.65;
 
@@ -627,8 +617,8 @@ namespace USV_Controller_V1._1
             if (_monitor != null)
             {
                 _monitor.Topmost = true;
-                _monitor.Left = 0;
-                _monitor.Top = this.Height; // Starts exactly where Main ends
+                _monitor.Left = screenLeft;
+                _monitor.Top = screenTop + this.Height; // Starts exactly where Main ends
                 _monitor.Width = halfWidth;
                 _monitor.Height = screenHeight * 0.35; // Remaining vertical space
             }
@@ -637,8 +627,8 @@ namespace USV_Controller_V1._1
             if (_cameraWindow != null)
             {
                 _cameraWindow.Topmost = true;
-                _cameraWindow.Left = halfWidth; // Starts at middle of screen
-                _cameraWindow.Top = 0;
+                _cameraWindow.Left = screenLeft + halfWidth; // Starts at middle of screen
+                _cameraWindow.Top = screenTop;
                 _cameraWindow.Width = halfWidth;
                 _cameraWindow.Height = screenHeight * 0.55; // 55% height
             }
@@ -663,8 +653,8 @@ namespace USV_Controller_V1._1
                         }
 
                         // Calculate logical position
-                        double xLogical = halfWidth;
-                        double yLogical = screenHeight * 0.55; // Starts at 55%
+                        double xLogical = screenLeft + halfWidth;
+                        double yLogical = screenTop + (screenHeight * 0.55); // Starts at 55%
                         double wLogical = halfWidth;
                         double hLogical = screenHeight * 0.45; // Remaining 45%
 
@@ -711,9 +701,6 @@ namespace USV_Controller_V1._1
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             Log("🛑 Shutting down...");
-
-            // ✅ Restore taskbar before closing
-            ShowTaskbar();
 
             _timer?.Stop();
             _pingTimer?.Stop();

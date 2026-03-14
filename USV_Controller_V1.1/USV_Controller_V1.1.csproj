@@ -9,6 +9,8 @@
     <UseWPF>true</UseWPF>
 	 <NoWarn>NU1701</NoWarn>
     <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <Platforms>AnyCPU;x64;x86</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
   </PropertyGroup>
 
 	<!-- Add this section to ensure the icon is included -->
@@ -23,6 +25,14 @@
     <EmbeddedResource Remove="OpenCPN\**" />
     <None Remove="OpenCPN\**" />
     <Page Remove="OpenCPN\**" />
+    <Compile Remove="Bahria1\**" />
+    <EmbeddedResource Remove="Bahria1\**" />
+    <None Remove="Bahria1\**" />
+    <Page Remove="Bahria1\**" />
+    <Compile Remove="Hikvision\**" />
+    <EmbeddedResource Remove="Hikvision\**" />
+    <None Remove="Hikvision\**" />
+    <Page Remove="Hikvision\**" />
   </ItemGroup>
 	<ItemGroup>
 
@@ -36,9 +46,117 @@
     <PackageReference Include="SharpDX.DirectInput" Version="4.2.0" />
     <PackageReference Include="SkiaSharp.Views.WPF" Version="2.88.8" />
     <PackageReference Include="System.IO.Ports" Version="10.0.2" />
-    <PackageReference Include="Vlc.DotNet.Forms" Version="3.1.0" />
-    <PackageReference Include="Vlc.DotNet.Wpf" Version="3.1.0" />
+    <PackageReference Include="System.Drawing.Common" Version="8.0.0" />
 </ItemGroup>
 
+	<ItemGroup>
+		<Reference Include="WindowsFormsIntegration" />
+	</ItemGroup>
+
+	<!-- Hikvision SDK Libraries -->
+	<ItemGroup>
+		<None Update="SDK\AudioRender.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\EagleEyeRender.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\GdiPlus.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCCore.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDK.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\AnalyzeData.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\AudioIntercom.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\AudioRender.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCAlarm.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCCoreDevCfg.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCDisplay.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCGeneralCfgMgr.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCIndustry.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCPlayBack.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCPreview.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\HCVoiceTalk.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\libiconv2.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\OpenAL32.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\StreamTransClient.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HCNetSDKCom\SystemTransform.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\hlog.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HmMerge.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\hpr.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HWDecode.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\HXVA.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\libcrypto-1_1-x64.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\libmmd.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\libssl-1_1-x64.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\MP_Render.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\NPQos.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\OpenAL32.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\PlayCtrl.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\SuperRender.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+		<None Update="SDK\zlib1.dll">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>
