@@ -4,26 +4,26 @@
     <!-- =================== DARK MARITIME COLOR PALETTE (NIGHT MODE) =================== -->
     
     <!-- Background Colors -->
-    <Color x:Key="DarkNavy">#0D1B2A</Color>
-    <Color x:Key="MidNavy">#1B3A4B</Color>
-    <Color x:Key="LightNavy">#2B4A5B</Color>
-    <Color x:Key="PanelBorder">#3A5A6B</Color>
+    <Color x:Key="DarkNavy">#080D1A</Color>
+    <Color x:Key="MidNavy">#111827</Color>
+    <Color x:Key="LightNavy">#1F2937</Color>
+    <Color x:Key="PanelBorder">#334155</Color>
     
     <!-- Accent Colors -->
-    <Color x:Key="CyanAccent">#00D4FF</Color>
-    <Color x:Key="TealAccent">#00B4CC</Color>
-    <Color x:Key="GreenGlow">#00FF88</Color>
-    <Color x:Key="RedGlow">#FF4444</Color>
-    <Color x:Key="OrangeGlow">#FFA500</Color>
-    <Color x:Key="YellowGlow">#FFDD00</Color>
+    <Color x:Key="CyanAccent">#0284C7</Color>
+    <Color x:Key="TealAccent">#38BDF8</Color>
+    <Color x:Key="GreenGlow">#34D399</Color>
+    <Color x:Key="RedGlow">#F87171</Color>
+    <Color x:Key="OrangeGlow">#FBBF24</Color>
+    <Color x:Key="YellowGlow">#FDE047</Color>
     
     <!-- Text Colors -->
-    <Color x:Key="LightText">#E8F4F8</Color>
-    <Color x:Key="DimText">#8899AA</Color>
-    <Color x:Key="CyanText">#00D4FF</Color>
+    <Color x:Key="LightText">#F8FAFC</Color>
+    <Color x:Key="DimText">#94A3B8</Color>
+    <Color x:Key="CyanText">#38BDF8</Color>
     
     <!-- Special Day Mode Colors (Mapped to standard colors in Dark Mode) -->
-    <Color x:Key="SliderGlowColor">#00D4FF</Color>
+    <Color x:Key="SliderGlowColor">#0284C7</Color>
 
     <!-- Solid Brushes -->
     <SolidColorBrush x:Key="DarkNavyBrush" Color="{StaticResource DarkNavy}"/>
@@ -45,28 +45,28 @@
     
     <!-- Gradient Brushes -->
     <LinearGradientBrush x:Key="DarkBackgroundGradient" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#0A1520" Offset="0"/>
-        <GradientStop Color="#0D1B2A" Offset="0.3"/>
-        <GradientStop Color="#1B3A4B" Offset="1"/>
+        <GradientStop Color="#080D1A" Offset="0"/>
+        <GradientStop Color="#0B111E" Offset="0.3"/>
+        <GradientStop Color="#111827" Offset="1"/>
     </LinearGradientBrush>
     
     <LinearGradientBrush x:Key="PanelGradient" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#1B3A4B" Offset="0"/>
-        <GradientStop Color="#152535" Offset="1"/>
+        <GradientStop Color="#111827" Offset="0"/>
+        <GradientStop Color="#0F172A" Offset="1"/>
     </LinearGradientBrush>
     
     <LinearGradientBrush x:Key="MetallicRingGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#4A6A7B" Offset="0"/>
-        <GradientStop Color="#2A4A5B" Offset="0.5"/>
-        <GradientStop Color="#4A6A7B" Offset="1"/>
+        <GradientStop Color="#475569" Offset="0"/>
+        <GradientStop Color="#1E293B" Offset="0.5"/>
+        <GradientStop Color="#475569" Offset="1"/>
     </LinearGradientBrush>
     
     <!-- =================== GLOW EFFECTS =================== -->
     
-    <DropShadowEffect x:Key="CyanGlow" Color="#00D4FF" BlurRadius="15" ShadowDepth="0" Opacity="0.8"/>
-    <DropShadowEffect x:Key="GreenGlowEffect" Color="#00FF88" BlurRadius="20" ShadowDepth="0" Opacity="0.9"/>
-    <DropShadowEffect x:Key="RedGlowEffect" Color="#FF4444" BlurRadius="20" ShadowDepth="0" Opacity="0.9"/>
-    <DropShadowEffect x:Key="OrangeGlowEffect" Color="#FFA500" BlurRadius="15" ShadowDepth="0" Opacity="0.8"/>
-    <DropShadowEffect x:Key="SubtleGlow" Color="#00D4FF" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+    <DropShadowEffect x:Key="CyanGlow" Color="#0284C7" BlurRadius="15" ShadowDepth="0" Opacity="0.55"/>
+    <DropShadowEffect x:Key="GreenGlowEffect" Color="#34D399" BlurRadius="20" ShadowDepth="0" Opacity="0.65"/>
+    <DropShadowEffect x:Key="RedGlowEffect" Color="#F87171" BlurRadius="20" ShadowDepth="0" Opacity="0.65"/>
+    <DropShadowEffect x:Key="OrangeGlowEffect" Color="#FBBF24" BlurRadius="15" ShadowDepth="0" Opacity="0.55"/>
+    <DropShadowEffect x:Key="SubtleGlow" Color="#0284C7" BlurRadius="8" ShadowDepth="0" Opacity="0.3"/>
     
 </ResourceDictionary>

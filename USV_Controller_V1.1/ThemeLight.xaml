@@ -4,26 +4,26 @@
     <!-- =================== LIGHT MARITIME COLOR PALETTE (DAY MODE) =================== -->
     
     <!-- Background Colors (Grayscale for "Little Gray" Day Mode) -->
-    <Color x:Key="DarkNavy">#F0F0F0</Color>
-    <Color x:Key="MidNavy">#E0E0E0</Color>
-    <Color x:Key="LightNavy">#D0D0D0</Color>
-    <Color x:Key="PanelBorder">#A0A0A0</Color>
+    <Color x:Key="DarkNavy">#F8FAFC</Color>
+    <Color x:Key="MidNavy">#FFFFFF</Color>
+    <Color x:Key="LightNavy">#E2E8F0</Color>
+    <Color x:Key="PanelBorder">#CBD5E1</Color>
     
     <!-- Accent Colors (Black for maximum contrast) -->
-    <Color x:Key="CyanAccent">#000000</Color>
-    <Color x:Key="TealAccent">#000000</Color>
-    <Color x:Key="GreenGlow">#00AA55</Color> <!-- Restored to Green for 'F' Label -->
-    <Color x:Key="RedGlow">#CC2222</Color>
-    <Color x:Key="OrangeGlow">#DD8800</Color>
-    <Color x:Key="YellowGlow">#CCAA00</Color>
+    <Color x:Key="CyanAccent">#0369A1</Color>
+    <Color x:Key="TealAccent">#0284C7</Color>
+    <Color x:Key="GreenGlow">#047857</Color>
+    <Color x:Key="RedGlow">#B91C1C</Color>
+    <Color x:Key="OrangeGlow">#B45309</Color>
+    <Color x:Key="YellowGlow">#A16207</Color>
     
     <!-- Special Day Mode Colors -->
-    <Color x:Key="SliderGlowColor">#111111</Color>
+    <Color x:Key="SliderGlowColor">#0369A1</Color>
     
     <!-- Text Colors (Black for maximum contrast) -->
-    <Color x:Key="LightText">#000000</Color>
-    <Color x:Key="DimText">#000000</Color>
-    <Color x:Key="CyanText">#000000</Color>
+    <Color x:Key="LightText">#0F172A</Color>
+    <Color x:Key="DimText">#475569</Color>
+    <Color x:Key="CyanText">#075985</Color>
     
     <!-- Solid Brushes -->
     <SolidColorBrush x:Key="DarkNavyBrush" Color="{StaticResource DarkNavy}"/>
@@ -45,28 +45,28 @@
     
     <!-- Gradient Brushes (Light versions) -->
     <LinearGradientBrush x:Key="DarkBackgroundGradient" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#F8F8F8" Offset="0"/>
-        <GradientStop Color="#EEEEEE" Offset="0.3"/>
-        <GradientStop Color="#DDDDDD" Offset="1"/>
+        <GradientStop Color="#F8FAFC" Offset="0"/>
+        <GradientStop Color="#F1F5F9" Offset="0.3"/>
+        <GradientStop Color="#E2E8F0" Offset="1"/>
     </LinearGradientBrush>
     
     <LinearGradientBrush x:Key="PanelGradient" StartPoint="0,0" EndPoint="0,1">
-        <GradientStop Color="#F0F0F0" Offset="0"/>
-        <GradientStop Color="#E0E0E0" Offset="1"/>
+        <GradientStop Color="#FFFFFF" Offset="0"/>
+        <GradientStop Color="#F8FAFC" Offset="1"/>
     </LinearGradientBrush>
     
     <LinearGradientBrush x:Key="MetallicRingGradient" StartPoint="0,0" EndPoint="1,1">
-        <GradientStop Color="#606060" Offset="0"/>
-        <GradientStop Color="#404040" Offset="0.5"/>
-        <GradientStop Color="#606060" Offset="1"/>
+        <GradientStop Color="#94A3B8" Offset="0"/>
+        <GradientStop Color="#64748B" Offset="0.5"/>
+        <GradientStop Color="#94A3B8" Offset="1"/>
     </LinearGradientBrush>
     
     <!-- =================== GLOW EFFECTS (Subtle for day mode) =================== -->
     
-    <DropShadowEffect x:Key="CyanGlow" Color="#000000" BlurRadius="10" ShadowDepth="0" Opacity="0.5"/>
-    <DropShadowEffect x:Key="GreenGlowEffect" Color="#00AA55" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
-    <DropShadowEffect x:Key="RedGlowEffect" Color="#CC2222" BlurRadius="12" ShadowDepth="0" Opacity="0.6"/>
-    <DropShadowEffect x:Key="OrangeGlowEffect" Color="#DD8800" BlurRadius="10" ShadowDepth="0" Opacity="0.5"/>
-    <DropShadowEffect x:Key="SubtleGlow" Color="#000000" BlurRadius="6" ShadowDepth="0" Opacity="0.3"/>
+    <DropShadowEffect x:Key="CyanGlow" Color="#0369A1" BlurRadius="10" ShadowDepth="0" Opacity="0.35"/>
+    <DropShadowEffect x:Key="GreenGlowEffect" Color="#047857" BlurRadius="12" ShadowDepth="0" Opacity="0.35"/>
+    <DropShadowEffect x:Key="RedGlowEffect" Color="#B91C1C" BlurRadius="12" ShadowDepth="0" Opacity="0.35"/>
+    <DropShadowEffect x:Key="OrangeGlowEffect" Color="#B45309" BlurRadius="10" ShadowDepth="0" Opacity="0.3"/>
+    <DropShadowEffect x:Key="SubtleGlow" Color="#0369A1" BlurRadius="6" ShadowDepth="0" Opacity="0.2"/>
     
 </ResourceDictionary>

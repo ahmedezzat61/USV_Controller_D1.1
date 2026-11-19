@@ -31,8 +31,8 @@
                                         Background="{DynamicResource MidNavyBrush}"
                                         BorderBrush="{DynamicResource PanelBorderBrush}"
                                         BorderThickness="1,1,1,0"
-                                        CornerRadius="4,4,0,0"
-                                        Padding="10,6">
+                                        CornerRadius="8,8,0,0"
+                                        Padding="12,7">
                                     <TextBlock Text="{TemplateBinding Header}" 
                                                Foreground="{DynamicResource CyanTextBrush}"
                                                FontWeight="Bold"/>
@@ -43,8 +43,8 @@
                                         Background="{DynamicResource PanelGradient}"
                                         BorderBrush="{DynamicResource PanelBorderBrush}"
                                         BorderThickness="1,0,1,1"
-                                        CornerRadius="0,0,4,4"
-                                        Padding="8">
+                                        CornerRadius="0,0,8,8"
+                                        Padding="10">
                                     <ContentPresenter/>
                                 </Border>
                             </Grid>
@@ -70,7 +70,7 @@
                                     Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="4"
+                                    CornerRadius="7"
                                     Padding="{TemplateBinding Padding}">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
@@ -115,7 +115,7 @@
                                                 CornerRadius="6"
                                                 HorizontalAlignment="Center">
                                             <Border.Effect>
-                                                <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Opacity="0.3"/>
+                                                <DropShadowEffect Color="Black" BlurRadius="4" ShadowDepth="2" Opacity="0.25"/>
                                             </Border.Effect>
                                         </Border>
                                         

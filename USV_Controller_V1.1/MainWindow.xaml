@@ -2,14 +2,14 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF"
-        Title="USV Controller V1.1"
+        Title="D-Class | USV Ground Control"
         Height="665" Width="700"
         ResizeMode="CanMinimize"
         WindowStyle="None"
         WindowStartupLocation="Manual"
         Background="{DynamicResource DarkBackgroundGradient}">
 
-    <Grid Margin="8">
+    <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -17,12 +17,43 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header with Glow Effect -->
-        <Border Background="Transparent" Padding="0,0,0,15">
-            <TextBlock Text="Demolition #1"
-                       HorizontalAlignment="Center"
-                       Style="{DynamicResource HeaderText}"
-                       FontSize="28"/>
+        <!-- Station identity -->
+        <Border Background="{DynamicResource MidNavyBrush}"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="8"
+                Padding="14,8"
+                Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="D-CLASS"
+                               Style="{DynamicResource HeaderText}"
+                               FontSize="20"/>
+                    <TextBlock Text="USV GROUND CONTROL  |  YAMAHA OUTBOARD"
+                               Foreground="{DynamicResource DimTextBrush}"
+                               FontSize="10"
+                               FontWeight="SemiBold"
+                               FontFamily="Consolas"
+                               Margin="1,2,0,0"/>
+                </StackPanel>
+                <Border Grid.Column="1"
+                        Background="{DynamicResource DarkNavyBrush}"
+                        BorderBrush="{DynamicResource PanelBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="5"
+                        Padding="9,5"
+                        VerticalAlignment="Center">
+                    <TextBlock Text="REMOTE OPERATIONS"
+                               Foreground="{DynamicResource CyanTextBrush}"
+                               FontFamily="Consolas"
+                               FontSize="10"
+                               FontWeight="Bold"/>
+                </Border>
+            </Grid>
         </Border>
 
         <!-- Main Layout -->

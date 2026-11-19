@@ -10,7 +10,7 @@
         Height="600" 
         Width="800"
         WindowStartupLocation="Manual"
-        Background="#1E1E1E">
+        Background="{DynamicResource DarkBackgroundGradient}">
 
     <Grid>
         <Grid.RowDefinitions>
@@ -21,9 +21,9 @@
 
         <!-- Header -->
         <Border Grid.Row="0" 
-                Background="#252526" 
-                Padding="10,8"
-                BorderBrush="#3F3F46" 
+            Background="{DynamicResource MidNavyBrush}"
+            Padding="12,9"
+            BorderBrush="{DynamicResource PanelBorderBrush}"
                 BorderThickness="0,0,0,1">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -38,7 +38,7 @@
                     <TextBlock Text="Live Camera Feed" 
                                FontSize="14" 
                                FontWeight="SemiBold"
-                               Foreground="White"
+                               Foreground="{DynamicResource LightTextBrush}"
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
@@ -53,7 +53,7 @@
                     <TextBlock x:Name="CameraStatus"
                                Text="⏳ Connecting..." 
                                FontSize="12"
-                               Foreground="#CCCCCC"
+                               Foreground="{DynamicResource DimTextBrush}"
                                VerticalAlignment="Center"/>
                 </StackPanel>
             </Grid>
@@ -62,7 +62,7 @@
         <!-- Video Display Area -->
         <Border Grid.Row="1" 
                 Background="Black"
-                BorderBrush="#3F3F46"
+                BorderBrush="{DynamicResource PanelBorderBrush}"
                 BorderThickness="0">
             <Grid>
                 <!-- WindowsFormsHost for camera display -->
@@ -77,13 +77,13 @@
                                 VerticalAlignment="Center">
                         <TextBlock Text="📡 Connecting to camera..." 
                                    FontSize="16"
-                                   Foreground="White"
+                                   Foreground="{DynamicResource LightTextBrush}"
                                    HorizontalAlignment="Center"
                                    Margin="0,0,0,10"/>
                         <ProgressBar Width="200" 
                                      Height="4" 
                                      IsIndeterminate="True"
-                                     Foreground="LimeGreen"/>
+                                     Foreground="{DynamicResource GreenGlowBrush}"/>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -91,9 +91,9 @@
 
         <!-- Footer with Controls Info -->
         <Border Grid.Row="2" 
-                Background="#252526" 
-                Padding="10,8"
-                BorderBrush="#3F3F46" 
+            Background="{DynamicResource MidNavyBrush}"
+            Padding="12,8"
+            BorderBrush="{DynamicResource PanelBorderBrush}"
                 BorderThickness="0,1,0,0">
             <Grid>
                 <Grid.ColumnDefinitions>
@@ -104,12 +104,14 @@
                 <!-- Control Instructions -->
                 <StackPanel Orientation="Horizontal" 
                             VerticalAlignment="Center">
-                    <Border Background="#3C3C3C" 
+                    <Border Background="{DynamicResource DarkNavyBrush}"
                             Padding="8,4" 
-                            CornerRadius="3"
+                            CornerRadius="5"
+                            BorderBrush="{DynamicResource PanelBorderBrush}"
+                            BorderThickness="1"
                             Margin="0,0,10,0">
-                        <TextBlock FontSize="11" 
-                                   Foreground="#CCCCCC">
+                            <TextBlock FontSize="11"
+                                   Foreground="{DynamicResource DimTextBrush}">
                             <Run Text="🕹️ POV Hat:" FontWeight="SemiBold"/>
                             <Run Text="Pan/Tilt Camera"/>
                         </TextBlock>
@@ -122,7 +124,7 @@
                            Grid.Column="1" 
                            Text="Ready" 
                            FontSize="11"
-                           Foreground="#4EC9B0"
+                           Foreground="{DynamicResource GreenGlowBrush}"
                            VerticalAlignment="Center"
                            Margin="10,0,0,0"/>
             </Grid>
