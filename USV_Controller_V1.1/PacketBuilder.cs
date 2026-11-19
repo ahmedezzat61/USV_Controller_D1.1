@@ -12,16 +12,28 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using System.Windows.Input;
+using SharpDX.XInput;
 
 namespace USV_Controller_V1._1
 {
+    // ✅ Control mode enum for joystick toggle (buttons 20/21/22)
+    public enum ControlMode
+    {
+        Idle,      // Button 20 - nothing sent
+        Manual,    // Button 21 - UDP packets on port 8888
+        Waypoint   // Button 22 - TCP waypoint packet on port 8889
+    }
+
     public partial class MainWindow
     {
         // ✅ Packet sequence counter
         private byte _usvSequence = 0;
         private byte _espSequence = 0;
+        private byte _waypointSequence = 0;
         private int _lastSystemFaultState = 0;
         private byte _watchdogEsp = 0;
+        private Gamepad _gamepad;
+
 
         // ✅ Button Press Timers
         private DateTime _watchdogPressStartTime = DateTime.MinValue;
@@ -393,6 +405,36 @@ namespace USV_Controller_V1._1
 
             // Checksum
             packet[7] = CalculateChecksum(packet, 7);
+
+            return packet;
+        }
+
+        // ✅ BUILD WAYPOINT TCP PACKET (12 bytes total)
+        // Structure: [0xBB] [0x66] [SEQ] [Lat_int32_BE] [Lon_int32_BE] [CHECKSUM]
+        // Lat/Lon are multiplied by 1,000,000 and sent as signed int32 big-endian
+        private byte[] BuildWaypointPacket(int latInt, int lonInt)
+        {
+            byte[] packet = new byte[12];
+
+            // Header (distinct from UDP 0xAA 0x55)
+            packet[0] = 0xBB;
+            packet[1] = 0x66;
+            packet[2] = _waypointSequence++;
+
+            // Latitude as signed int32, big-endian
+            packet[3] = (byte)((latInt >> 24) & 0xFF);
+            packet[4] = (byte)((latInt >> 16) & 0xFF);
+            packet[5] = (byte)((latInt >> 8) & 0xFF);
+            packet[6] = (byte)(latInt & 0xFF);
+
+            // Longitude as signed int32, big-endian
+            packet[7] = (byte)((lonInt >> 24) & 0xFF);
+            packet[8] = (byte)((lonInt >> 16) & 0xFF);
+            packet[9] = (byte)((lonInt >> 8) & 0xFF);
+            packet[10] = (byte)(lonInt & 0xFF);
+
+            // XOR checksum of bytes 0-10
+            packet[11] = CalculateChecksum(packet, 11);
 
             return packet;
         }

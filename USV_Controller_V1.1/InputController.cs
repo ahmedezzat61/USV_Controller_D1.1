@@ -18,6 +18,7 @@ namespace USV_Controller_V1._1
         private const string UsvIp = "192.168.80.66";
         private const int UsvSendPort = 8888;
         private const int UsvReceivePort = 8889;
+        private const int UsvWaypointPort = 8889;  // ✅ TCP waypoint port
 
         // ESP32 Configuration
         private const string EspIp = "192.168.80.69";
@@ -140,6 +141,8 @@ namespace USV_Controller_V1._1
             try { espClient?.Close(); } catch { }
             try { _listener?.Close(); } catch { }
             try { _espListener?.Close(); } catch { }
+            try { _waypointTcpClient?.Close(); _waypointTcpClient = null; } catch { }
+            _waypointSent = false;
 
             _connected = false;
             _isReachable = false;
@@ -173,42 +176,123 @@ namespace USV_Controller_V1._1
 
             _watchdogEsp = watchdogEsp(_watchdogEsp);
 
-            // Send USV packet
-            byte[] usvPacket = BuildPacket();
-            try
+            // ✅ MODE-AWARE SENDING
+            if (_controlMode == ControlMode.Manual)
             {
-                if (usvClient != null && usvEndpoint != null)
-                    usvClient.Send(usvPacket, usvPacket.Length, usvEndpoint);
-
-                Dispatcher.Invoke(() =>
+                // Send USV packet via UDP (existing behavior)
+                byte[] usvPacket = BuildPacket();
+                try
                 {
-                    string packetPreview = "USV: " + BitConverter.ToString(usvPacket).Replace("-", " ");
-                    if (this.FindName("PacketPreview") is TextBlock tbUsv)
-                        tbUsv.Text = packetPreview;
-                    UpdatePacket(packetPreview);
-                });
-            }
-            catch (Exception ex)
-            {
-                if (DateTime.Now.Second % 10 == 0)
-                    Log($"⚠️ USV send error: {ex.Message}");
-            }
+                    if (usvClient != null && usvEndpoint != null)
+                        usvClient.Send(usvPacket, usvPacket.Length, usvEndpoint);
 
-            // Send ESP packet
-            byte[] espPacket = BuildPacket2();
-            try
-            {
-                if (espClient != null && espEndpoint != null)
-                    espClient.Send(espPacket, espPacket.Length, espEndpoint);
+                    Dispatcher.Invoke(() =>
+                    {
+                        string packetPreview = "USV: " + BitConverter.ToString(usvPacket).Replace("-", " ");
+                        if (this.FindName("PacketPreview") is TextBlock tbUsv)
+                            tbUsv.Text = packetPreview;
+                        UpdatePacket(packetPreview);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    if (DateTime.Now.Second % 10 == 0)
+                        Log($"⚠️ USV send error: {ex.Message}");
+                }
             }
-            catch (Exception ex)
+            else if (_controlMode == ControlMode.Waypoint && !_waypointSent)
             {
-                if (DateTime.Now.Second % 10 == 0)
-                    Log($"⚠️ ESP send error: {ex.Message}");
+                // ✅ Send waypoint TCP packet ONCE
+                if (_openCpnService != null && _openCpnService.HasFix && !_waypointSendInProgress)
+                {
+                    int latInt = _openCpnService.LatInt;
+                    int lonInt = _openCpnService.LonInt;
+                    byte[] wpPacket = BuildWaypointPacket(latInt, lonInt);
+                    _waypointSendInProgress = true;
+                    _ = SendWaypointAsync(wpPacket, latInt, lonInt);
+                }
+                else
+                {
+                    if (!_waypointSendInProgress && DateTime.Now.Second % 5 == 0)
+                        Log("⚠️ Waypoint mode active but no waypoint received from OpenCPN yet");
+                }
+            }
+            if (_controlMode != ControlMode.Idle)
+            {
+                byte[] espPacket = BuildPacket2();
+                try
+                {
+                    if (espClient != null && espEndpoint != null)
+                        espClient.Send(espPacket, espPacket.Length, espEndpoint);
+                }
+                catch (Exception ex)
+                {
+                    if (DateTime.Now.Second % 10 == 0)
+                        Log($"⚠️ ESP send error: {ex.Message}");
+                }
             }
 
             // ✅ PTZ runs always
             TryControlPTZ();
+        }
+
+        private async Task SendWaypointAsync(byte[] packet, int latInt, int lonInt)
+        {
+            TcpClient? client = null;
+            try
+            {
+                client = new TcpClient
+                {
+                    SendTimeout = 3000
+                };
+                _waypointTcpClient = client;
+
+                Task connectTask = client.ConnectAsync(UsvIp, UsvWaypointPort);
+                Task completed = await Task.WhenAny(connectTask, Task.Delay(3000));
+                if (completed != connectTask)
+                    throw new TimeoutException("TCP waypoint connection timed out");
+
+                await connectTask;
+                await client.GetStream().WriteAsync(packet, 0, packet.Length);
+
+                bool stillLatestWaypoint =
+                    _openCpnService != null &&
+                    _openCpnService.HasFix &&
+                    _openCpnService.LatInt == latInt &&
+                    _openCpnService.LonInt == lonInt;
+
+                if (!_connected || _controlMode != ControlMode.Waypoint || !stillLatestWaypoint)
+                    return;
+
+                _waypointSent = true;
+
+                double latDeg = latInt / 1000000.0;
+                double lonDeg = lonInt / 1000000.0;
+                Dispatcher.Invoke(() =>
+                {
+                    string preview = "WPT TCP: " + BitConverter.ToString(packet).Replace("-", " ");
+                    Log($"✅ Waypoint sent via TCP → {UsvIp}:{UsvWaypointPort}");
+                    Log($"   Lat: {latDeg:F6}° ({latInt}), Lon: {lonDeg:F6}° ({lonInt})");
+                    if (this.FindName("PacketPreview") is TextBlock tbUsv)
+                        tbUsv.Text = preview;
+                    UpdatePacket(preview);
+                });
+            }
+            catch (Exception ex)
+            {
+                _waypointSent = false;
+                Log($"❌ Waypoint TCP send error: {ex.Message}");
+            }
+            finally
+            {
+                _waypointSendInProgress = false;
+                if (client != null)
+                {
+                    try { client.Close(); } catch { }
+                }
+                if (ReferenceEquals(_waypointTcpClient, client))
+                    _waypointTcpClient = null;
+            }
         }
 
         // ✅ NEW: Extracted PTZ logic into its own method — runs regardless of USV connection

@@ -38,6 +38,18 @@ namespace USV_Controller_V1._1
         private IPEndPoint? espEndpoint;
 
         private UdpClient? _listener;
+
+        // ✅ OpenCPN waypoint service
+        private OpenCpnService? _openCpnService;
+
+        // ✅ Control mode toggle (buttons 20/21/22)
+        private ControlMode _controlMode = ControlMode.Manual;
+        private bool _button20WasPressed = false;
+        private bool _button21WasPressed = false;
+        private bool _button22WasPressed = false;
+        private bool _waypointSent = false;
+        private bool _waypointSendInProgress = false;
+        private TcpClient? _waypointTcpClient;
         private bool _connected = false;
         private readonly System.Timers.Timer _timer;
 
@@ -251,6 +263,14 @@ namespace USV_Controller_V1._1
             _monitor = new MonitorWindow();
             _monitor.Show();
             InitializeJoystick();
+
+            // ✅ Start OpenCPN waypoint listener
+            _openCpnService = new OpenCpnService(Log);
+            _openCpnService.WaypointReceived += (_, _) =>
+            {
+                _waypointSent = false;
+            };
+            _openCpnService.Start();
             SetupRpmChart(RpmPieLeft);
             SetupRpmChart(RpmPieRight);
 
@@ -407,6 +427,38 @@ namespace USV_Controller_V1._1
                     {
                         _button4WasPressed = false;
                     }
+
+                    // ✅ Buttons 20/21/22 - Control Mode Toggle (0-indexed: 19/20/21)
+                    bool btn20 = _joystickState.Buttons[19];
+                    bool btn21 = _joystickState.Buttons[20];
+                    bool btn22 = _joystickState.Buttons[21];
+
+                    // Button 20 → IDLE mode
+                    if (btn20 && !_button20WasPressed)
+                    {
+                        _controlMode = ControlMode.Idle;
+                        _waypointSent = false;
+                        Dispatcher.Invoke(() => Log("🎮 Button 20 → IDLE mode (no packets sent)"));
+                    }
+                    _button20WasPressed = btn20;
+
+                    // Button 21 → MANUAL mode (UDP)
+                    if (btn21 && !_button21WasPressed)
+                    {
+                        _controlMode = ControlMode.Manual;
+                        _waypointSent = false;
+                        Dispatcher.Invoke(() => Log("🎮 Button 21 → MANUAL mode (UDP packets on 8888)"));
+                    }
+                    _button21WasPressed = btn21;
+
+                    // Button 22 → WAYPOINT mode (TCP)
+                    if (btn22 && !_button22WasPressed)
+                    {
+                        _controlMode = ControlMode.Waypoint;
+                        _waypointSent = false;
+                        Dispatcher.Invoke(() => Log("🎮 Button 22 → WAYPOINT mode (TCP on 8889)"));
+                    }
+                    _button22WasPressed = btn22;
                 }
                 catch (SharpDX.SharpDXException)
                 {
@@ -709,6 +761,9 @@ namespace USV_Controller_V1._1
             _espStatusTimer?.Stop();
             _espScanTimer?.Stop();
 
+            // ✅ Stop OpenCPN service
+            try { _openCpnService?.Stop(); } catch { }
+
             if (_espPort != null && _espPort.IsOpen)
             {
                 try { _espPort.Close(); } catch { }
@@ -718,6 +773,7 @@ namespace USV_Controller_V1._1
             try { usvClient?.Close(); } catch { }
             try { camClient?.Close(); } catch { }
             try { _listener?.Close(); } catch { }
+            try { _waypointTcpClient?.Close(); } catch { }
             try { _ptzController?.Dispose(); } catch { }
 
             CleanupJoystick();
